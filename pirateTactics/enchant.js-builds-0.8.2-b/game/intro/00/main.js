@@ -39,7 +39,16 @@ window.onload = function(){
     var uiPlayerBanner2   = "../../resources/playerBanner2.png";
     var uiWin             = "../../resources/win.png";
     var uiLose            = "../../resources/lose.png";
+    var uiSettingsSprite    = "../../resources/settings.png";
+    var uiArrowSprite = "../../resources/arrow.png";
 
+    //音楽・効果音のファイルのパスを用意する
+    var sndBGM            = "../../resources/music/highseas.mp3";
+    var sndClick          = "../../resources/sound/se2.wav";
+    var sndExplosion      = "../../resources/sound/bomb1.wav";
+    var sndSinkShip       = "../../resources/sound/bomb2.wav";
+    var sndChangeShips    = "../../resources/sound/se4.wav";
+    
     //変数にパスを格納した画像のプリロードを開始する
     game.preload(mapFrame);
     game.preload(mapBackground00);
@@ -64,7 +73,17 @@ window.onload = function(){
     game.preload(uiPlayerBanner2);
     game.preload(uiWin);
     game.preload(uiLose);
+    game.preload(uiSettingsSprite);
+    game.preload(uiArrowSprite);
 
+    //音楽・効果音のファイルをプリロードする
+    game.preload(sndBGM);
+    game.preload(sndClick);
+    game.preload(sndExplosion);
+    game.preload(sndSinkShip);
+    game.preload(sndChangeShips);
+    
+    
     //フォントファミリーとフォントサイズを変数に格納しておく
     var fontStyle = "32px 'ＭＳ ゴシック', arial, sans-serif";
 
@@ -721,6 +740,8 @@ window.onload = function(){
 
                 //カレントのシーンに爆発エフェクトを投入する
                 game.currentScene.addChild(explosion);
+
+                this.player.controller.sndManager.playFX(sndExplosion);
                 
                 //ダメージ計算の結果を表示する
                 alert("beforeHp: "+beforeHp+" -"+damage+"(-DEF) ="+afterHp);
@@ -764,6 +785,7 @@ window.onload = function(){
         },
 
         sinkShip: function() {
+            this.player.controller.sndManager.playFX(sndSinkShip);
             this.player.removeFune(this);
             this.parentNode.removeChild(this);
         }
@@ -957,6 +979,8 @@ window.onload = function(){
         initialize: function() {
             this.playerList = [];
             this.turnCounter = 0;
+            
+            this.sndManager = new SoundManager();
         },
 
         addPlayer: function(player) {
@@ -969,8 +993,9 @@ window.onload = function(){
             this.map = map;
         },
 
-        setTurnUI: function(ui) {
-            this.turnUI = ui;
+        setFrameUI: function(ui) {
+            this.frameUi = ui;
+            ui.manager = this;
         },
 
         setStartPositions: function(startPositions) {
@@ -1018,8 +1043,9 @@ window.onload = function(){
         updateTurn: function() {
             this.map.setActiveFune(this.getActivePlayer().getActiveFune());
             this.map.drawMovementRange();
-            this.turnUI.updateTurn(this.turnCounter);
-            this.turnUI.updatePlayer(this.getActivePlayer().getData("name"));
+            this.frameUi.updateTurn(this.turnCounter);
+            this.frameUi.updatePlayer(this.getActivePlayer().getData("name"));
+            this.sndManager.playFX(sndChangeShips);
         },
         //ターン終了時の処理関数
         endTurn: function() {
@@ -1117,6 +1143,7 @@ window.onload = function(){
             }
         },
 
+        //勝利者がいればそのプレイヤーを返す関数
         getWinner: function() {
             if (this.getActivePlayer().getFuneCount() == 0) {
                 if (this.getNonActivePlayer().getFuneCount() == 0) {
@@ -1128,13 +1155,18 @@ window.onload = function(){
                 return this.getActivePlayer();
             }
             return null
+        },
+
+        //セッティング画面を開く関数
+        openSettings: function() {
+            new SettingsWindow(this);
         }
     })
 
     /**
      * ターン関係の情報を表示するクラス
      */
-    var TurnUI = Class.create({
+    var FrameUI = Class.create({
         initialize: function(scene) {
             var fontColor = "rgba(255, 255, 105, 1.0)";
 
@@ -1151,6 +1183,23 @@ window.onload = function(){
             this.playerLabel.y = 640 -40;
             this.playerLabel.font = fontStyle;
             this.playerLabel.color = fontColor;
+
+
+            this.settingsButton = new Sprite(64, 64);
+            scene.addChild(this.settingsButton);
+            this.settingsButton.image = game.assets[uiSettingsSprite];
+            this.settingsButton.x = 64*14;
+            this.settingsButton.y = 640 -64;
+
+            var self = this;
+            this.settingsButton.addEventListener(enchant.Event.TOUCH_START, function(params) {
+                self.settingsButton.tl.scaleTo(1.1, 10, enchant.Easing.ELASTIC_EASEOUT)
+                new SettingsWindow(self.manager);
+            });
+
+            this.settingsButton.addEventListener(enchant.Event.TOUCH_END, function(params) {
+                self.settingsButton.tl.scaleTo(1.0, 3);
+            });
         },
 
         updateTurn: function(turn) {
@@ -1163,12 +1212,231 @@ window.onload = function(){
 
     })
 
+    //オーディオ管理のクラス
+    var SoundManager = Class.create({
+    	//コンストラクタ
+        initialize: function() {
+            this.volume = 0.5;			//ボリュームの初期値を50%にする
+            this.bgmPlaying = false;	//勝手に音を再生しないようにする
+        },
+
+        //BGMをならす関数
+        playBGM: function() {
+            this.bgmPlaying = true;		//音楽の再生を許可する
+
+            game.assets[sndBGM].play();	//音楽の再生を開始する
+            //WebAudioSoundを使用していれば
+            if(game.assets[sndBGM].src){
+            	//BGMのループ再生を有効にする
+                game.assets[sndBGM].src.loop = true;
+            //DOMSoundであれば
+            } else {
+            	//SoundManagerのオブジェクトをカレントのシーンに入れる
+                game.currentScene.addChild(this);
+            }
+            //ボリュームをクラスで指定された値にする
+            game.assets[sndBGM].volume = this.volume;
+        },
+        
+        //DOMSoundのループ再生用関数
+        onenterframe: function(){
+        	//bgmが再生状態になっていれば
+            if (this.bgmPlaying) {
+            	//フレームが更新される度にBGMの再生命令を実行する
+                game.assets[sndBGM].play();
+            }
+        },
+
+        //サウンドを複製して、同じサウンドを複数回、または同時にならせるようにする関数
+        playFX: function(name) {
+        	//サウンドを複製し、変数に格納する
+            var fx = game.assets[name].clone();
+            fx.play();	//複製したサウンドをならす
+            fx.volume = this.volume;	//音量を設定する
+        },
+
+        //BGMの再生を一時停止する関数
+        pauseBGM: function() {
+        	//BGMの再生を無効にする
+            this.bgmPlaying = false;
+            //BGMを一時停止する
+            game.assets[sndBGM].pause();
+        },
+
+        //BGMの再生を停止する関数
+        stopBGM: function() {
+        	//BGMの再生を無効にする
+            this.bgmPlaying = false;
+            //BGMを一停止するする
+            game.assets[sndBGM].stop();
+        },
+
+        //音量を上げる関数
+        volumeUp: function() {
+        	//音量を5%挙げる。
+            this.volume += 0.05;
+            //音量が最大値を超えてしまったら
+            if (this.volume > 1) {
+            	//最大値に戻す
+                this.volume = 1;
+            }
+            //コンソールに音量を変えたログを流す
+            console.log("volume", this.volume);
+            //BGMの音量を合わせる
+            game.assets[sndBGM].volume = this.volume;
+            //クリック音をならしてレスポンスを返す
+            this.playFX(sndClick);
+        },
+        
+        //音量を下げる関数
+        volumeDown: function() {
+        	//音量を5%下げる
+            this.volume -= 0.05;
+            //音量が0を下回ったら
+            if (this.volume < 0) {
+            	//それは不正な値なので、0まで戻す
+                this.volume = 0;
+            }
+            //音量変更のログを流す
+            console.log("volume", this.volume);
+            //BGMの音量を合わせる
+            game.assets[sndBGM].volume = this.volume;
+            //レスポンスの効果音を鳴らす
+            this.playFX(sndClick);
+        },
+
+        //現在の音量を取得して返す関数
+        getVolume: function() {
+            return this.volume;	//サウンドマネージャーから音量の値を取得して返す
+        },
+    })
+    
+    //セッティングウィンドウ
+    var SettingsWindow = Class.create(Scene, {
+        initialize: function(gameManager) {
+        	gameManager.sndManager.playFX(sndClick);
+
+        	Scene.call(this);
+            game.pushScene(this);
+
+            var shieldSprite = new Sprite(960, 640);
+            shieldSprite.image = game.assets[ui1x1Black];
+            shieldSprite.opacity = 0.5
+            this.addChild(shieldSprite);
+
+            var windowGroup = new Group();
+            windowGroup.x = (960 -512)/2;
+            windowGroup.y = (640 -512)/2;
+            this.addChild(windowGroup);
+
+            var windowSprite = new Sprite(512, 512);
+            windowSprite.image = game.assets[uiWindowSprite];
+            windowGroup.addChild(windowSprite);
+
+            var settingsGroup = new Group();
+            settingsGroup.x = 64;
+            settingsGroup.y = 32;
+            windowGroup.addChild(settingsGroup);
+
+            var fontColor = "rgba(255, 255, 105, 1.0)";
+
+            soundLabel = new Label("音量");
+            settingsGroup.addChild(soundLabel);
+            soundLabel.x = 0;
+            soundLabel.y = 16;
+            soundLabel.font = fontStyle;
+            soundLabel.color = fontColor;
+
+            var sndUpButton = new Sprite(64, 64);
+            settingsGroup.addChild(sndUpButton);
+            sndUpButton.x = 64 *4;
+            sndUpButton.y = 0;
+            sndUpButton.image = game.assets[uiArrowSprite];
+
+            var isKeyPressed = false;
+            sndUpButton.addEventListener(enchant.Event.TOUCH_START, function(params) {
+                if (gameManager.sndManager.getVolume() < 1) {
+                    if (isKeyPressed == false) {
+                        isKeyPressed = true;
+                        sndUpButton.tl.scaleTo(1.1, 10, enchant.Easing.ELASTIC_EASEOUT);
+                    }
+                }
+            });
+
+            sndUpButton.addEventListener(enchant.Event.TOUCH_END, function(params) {
+                if (gameManager.sndManager.getVolume() < 1) {
+                    if (isKeyPressed == true) {
+                        gameManager.sndManager.volumeUp();
+                        sndUpButton.tl.scaleTo(1.0, 3).then(function() {
+                            isKeyPressed = false;
+                        });
+                    }
+                }
+            });
+
+            var sndDownButton = new Sprite(64, 64);
+            settingsGroup.addChild(sndDownButton);
+            sndDownButton.x = 64*5 +5;
+            sndDownButton.y = 0;
+            sndDownButton.rotation = 180;
+            sndDownButton.image = game.assets[uiArrowSprite];
+
+            sndDownButton.addEventListener(enchant.Event.TOUCH_START, function(params) {
+                if (gameManager.sndManager.getVolume() > 0) {
+                    if (isKeyPressed == false) {
+                        isKeyPressed = true;
+                        sndDownButton.tl.scaleTo(1.1, 10, enchant.Easing.ELASTIC_EASEOUT);
+                    }
+                }
+            });
+
+            sndDownButton.addEventListener(enchant.Event.TOUCH_END, function(params) {
+                if (gameManager.sndManager.getVolume() > 0) {
+                    if (isKeyPressed == true) {
+                        gameManager.sndManager.volumeDown();
+                        sndDownButton.tl.scaleTo(1.0, 3).then(function() {
+                            isKeyPressed = false;
+                        });
+                    }
+                }
+            });
+
+            var self = this;
+            var cancelBtnSprite = new Sprite(128, 64);
+            cancelBtnSprite.image = game.assets[uiCancelBtnSprite];
+            cancelBtnSprite.x = 64;
+            cancelBtnSprite.y = 512 -64 -32;
+
+            windowGroup.addChild(cancelBtnSprite);
+
+            windowGroup.originX = 256;
+            windowGroup.originY = 256;
+            windowGroup.scaleX = 0.7;
+            windowGroup.scaleY = 0.7;
+            windowGroup.tl.scaleTo(1, 10, enchant.Easing.ELASTIC_EASEOUT).then(function() {
+                cancelBtnSprite.addEventListener(enchant.Event.TOUCH_START, function(params) {
+                    cancelBtnSprite.tl.scaleTo(1.1, 10, enchant.Easing.ELASTIC_EASEOUT)
+                });
+
+                cancelBtnSprite.addEventListener(enchant.Event.TOUCH_END, function(params) {
+                    shieldSprite.tl.fadeTo(0, 5);
+                    cancelBtnSprite.tl.scaleTo(0.9, 3).and().fadeTo(0, 5);
+                    windowSprite.tl.fadeTo(0, 5).then(function() {
+                        game.popScene();
+                    });
+                });
+            });
+        },
+    })   
+    
     /**
      * キャラのポップアップウィンドー
      */
     var StatusWindow = Class.create(Scene, {
     		//コンストラクタ
     		initialize: function(fune) {
+    			//ウィンドウを開いた音を鳴らす
+                fune.player.controller.sndManager.playFX(sndClick);
     			//スーパークラスのコンストラクタを呼ぶ
     			Scene.call(this);
     			//自身をゲームシーンとして登録する
@@ -1310,6 +1578,8 @@ window.onload = function(){
                         cancelBtnSprite.tl.scaleTo(0.9, 3).and().fadeTo(0, 5);
                         //海賊画像をフェードアウトする
                         pirate.tl.fadeTo(0, 5);
+                        //ボタンを押した音を鳴らす
+                        fune.player.controller.sndManager.playFX(sndClick);
                         //ウィンドウをフェードアウトさせる
                         windowSprite.tl.fadeTo(0, 5).then(function() {
                             game.popScene();		//シーンを再開する
@@ -1347,8 +1617,8 @@ window.onload = function(){
         var map = new GameMap(sceneGameMain, mapDisplayData);
         manager.setMap(map);
 
-        var turnUI = new TurnUI(sceneGameMain);
-        manager.setTurnUI(turnUI);
+        var frameUi = new FrameUI(sceneGameMain);
+        manager.setFrameUI(frameUi);
 
         // プレイヤー１
         var player1 = new GamePlayer(1, {name:"プレイヤー１"});
@@ -1382,6 +1652,9 @@ window.onload = function(){
         // ゲームにシーンを追加
         game.pushScene(sceneGameMain);
 
+        var sndmanager = new SoundManager();
+        sndmanager.playBGM();
+        
         // ゲームのロジック開始
         manager.beginGame();
     };
