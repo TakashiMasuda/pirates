@@ -5,7 +5,6 @@ enchant();
 
 window.onload = function(){
 
-	//ゲーム領域のサイズを指定し、ゲームの本体を作る
     var game = new Core(960, 640);
     game.fps = 30; //fps 一秒に何回を画面更新する
 
@@ -41,6 +40,13 @@ window.onload = function(){
     var uiLose            = "../../resources/lose.png";
     var uiSettingsSprite    = "../../resources/settings.png";
     var uiArrowSprite = "../../resources/arrow.png";
+    var uiAlertScreen   = "../../resources/alertScreen.png";
+    var uiStartScreen   = "../../resources/startScreen.png";
+    var uiStoryBtnSprite = "../../resources/btnStory.png";
+    var uiVersusBtnSprite = "../../resources/btnVS.png";
+    var uiStoryScreen   = "../../resources/storyScreen.png";
+    var uiContinueBtnSprite = "../../resources/btnContinue.png";
+    var uiNewBtnSprite = "../../resources/btnNew.png";
 
     //音楽・効果音のファイルのパスを用意する
     var sndBGM            = "../../resources/music/highseas.mp3";
@@ -48,6 +54,7 @@ window.onload = function(){
     var sndExplosion      = "../../resources/sound/bomb1.wav";
     var sndSinkShip       = "../../resources/sound/bomb2.wav";
     var sndChangeShips    = "../../resources/sound/se4.wav";
+    var uiSkillBtnSprite = "../../resources/btnSkill.png";
     
     //変数にパスを格納した画像のプリロードを開始する
     game.preload(mapFrame);
@@ -75,6 +82,14 @@ window.onload = function(){
     game.preload(uiLose);
     game.preload(uiSettingsSprite);
     game.preload(uiArrowSprite);
+    game.preload(uiSkillBtnSprite);
+    game.preload(uiAlertScreen);
+    game.preload(uiStartScreen);
+    game.preload(uiStoryBtnSprite);
+    game.preload(uiVersusBtnSprite);
+    game.preload(uiStoryScreen);
+    game.preload(uiContinueBtnSprite);
+    game.preload(uiNewBtnSprite);
 
     //音楽・効果音のファイルをプリロードする
     game.preload(sndBGM);
@@ -82,302 +97,295 @@ window.onload = function(){
     game.preload(sndExplosion);
     game.preload(sndSinkShip);
     game.preload(sndChangeShips);
-    
-    
-    //フォントファミリーとフォントサイズを変数に格納しておく
+
+    //フォントの設定をする
     var fontStyle = "32px 'ＭＳ ゴシック', arial, sans-serif";
 
-    //距離計算関数を連想配列にまとめる
+    //汎用的な関数をまとめる
     var utils = {
-    	//ユークリッド距離
+    	//ユークリッド距離の計算を行う関数
         getEuclideanDistance: function(startI, startJ, endI, endJ) {
-            //平方根を中心とした計算を行う
-        	var distanceSq = Math.pow(startI -endI, 2) +Math.pow(startJ -endJ, 2);
+            var distanceSq = Math.pow(startI -endI, 2) +Math.pow(startJ -endJ, 2);
             var distance   = Math.sqrt(distanceSq);
-            return distance;	//距離を返す
+            return distance;	//算出した距離を返す
         },
-        //マンハッタン距離。このゲームではこの距離計算を利用する
+
+        //マンハッタン距離の計算を行う関数
         getManhattanDistance: function(startI, startJ, endI, endJ) {
-            //斜め移動は2マスの移動として計算する
-        	var distance = Math.abs(startI -endI) +Math.abs(startJ -endJ);
-            return distance;	//距離を返す
+            var distance = Math.abs(startI -endI) +Math.abs(startJ -endJ);
+            return distance;	//算出した距離を返す
         },
-        //チェビシェフ距離
+
+        //チェビシェフ距離の計算を行う関数
         getChebyshevDistance: function(startI, startJ, endI, endJ) {
-            //斜め移動は1マスとして計算する
-        	var distance = Math.max(Math.abs(startI -endI), Math.abs(startJ -endJ));
-            return distance;	//距離を返す
+            var distance = Math.max(Math.abs(startI -endI), Math.abs(startJ -endJ));
+            return distance;	//算出した距離を返す
         },
-        //UI操作を一時不能にするための関数
+
+        //画面を一時的に操作不能にする関数
         beginUIShield: function() {
-        	//シールドスプライトを生成する
-            var shieldSprite = new Sprite(960, 640);
-            //任意の画像をセットする
-            shieldSprite.image = game.assets[ui1x1Black];
-            //透過率を100%にする
-            shieldSprite.opacity = 0.0;
-            //表面にシールドスプライトを展開する
-            game.currentScene.addChild(shieldSprite);
-            //シールドスプライトへの参照をutilに追加する
-            utils.shieldSprite = shieldSprite;
-        },
-        //UI操作不能状態を解除するための関数
-        endUIShield: function() {
-        	//シールドスプライトが存在すれば
-            if (utils.shieldSprite) {
-            	//シールドスプライトを削除する
-                game.currentScene.removeChild(utils.shieldSprite);
-                utils.shieldSprite = null;	//utils内のシールドスプライトへの参照をなくす
+        	//すでに操作不能になっていなければ
+            if (!utils.shieldSprite) {
+            	//画面全体を覆うスプライトを作る
+                var shieldSprite = new Sprite(960, 640);
+                // 画像をセットする
+                shieldSprite.image = game.assets[ui1x1Black];
+                //最大の透過を行う
+                shieldSprite.opacity = 0.0;
+                //カレントのシーンを操作不能にする
+                game.currentScene.addChild(shieldSprite);
+                //utilsに作成したスプライトの参照を持たせる
+                utils.shieldSprite = shieldSprite;
             }
-        }
+        },
+
+        //画面の操作不能状態を解除する関数
+        endUIShield: function() {
+        	//画面が操作不能状態になっていれば
+            if (utils.shieldSprite) {
+            	//操作不能にしているスプライトを消す
+                utils.shieldSprite.parentNode.removeChild(utils.shieldSprite);
+                utils.shieldSprite = null;	//スプライトの参照を消す
+            }
+        },
     };
 
-    //マスのタイプの定義のための連想配列を作成する
+    //マスの種類の定義
     var tileTypes = {
-    	//海
         umi:  {id:0, name:"umi"},
-        //荒海
         arai: {id:1, name:"arai"},
-        //浅瀬
         asai: {id:2, name:"asai"},
-        //陸地
         riku: {id:3, name:"riku"},
-        //岩礁
         iwa:  {id:4, name:"iwa"},
     };
 
-    //ゲームマップのクラスを作成する
+    //ゲームのマップクラス
     var GameMap = Class.create({
-    	//コンストラクタ。ゲームシーンとマップデータの二次元配列を引数にする
+    	//コンストラクタ
         initialize: function(scene, mapData) {
-            // 画面の枠のスプライトを作る
+            // 枠を作る
             var frame = new Sprite(960, 640);
-            //プリロードしたフレーム画像をセットする
+            //枠の画像をセットする
             frame.image = game.assets[mapFrame];
-            //シーンに画面の枠のスプライトを設定する
+            //シーンに作成したスプライトを追加する
+            //マップのインスタンスに枠への参照を持たせる
             scene.addChild(frame);
-            //クラスのインスタンスに画面の枠のスプライトへの参照を持たせる
             this.frame = frame;
 
-            // 画面の背景のスプライトを作る
+            // 同様に背景を作る
             var background = new Sprite(64*13, 64*9);
-            //プリロードした背景画像をセットする
             background.image = game.assets[mapBackground00];
-            //スプライトのx座標、y座標を指定する
+            //座標をセットする。この位置がローカル座標の起点となる
             background.x = 64;
             background.y = 10;
-            //シーンに画面の枠のスプライトを設定する
             scene.addChild(background);
-            //クラスのインスタンスに画面の背景のスプライトへの参照を持たせる
             this.background = background;
 
-            // マス目を作る
+            // マスのマップクラスを作る
             var tiles = new Map(64, 64);
-            //スプライトシートの画像をセットする
+            //スプライトシートをセットする
             tiles.image = game.assets[mapTiles];
-            //タイルの配置を開始する座標をセットする
             tiles.x = 64;
             tiles.y = 10;
-            //マップデータを使ってマスの配置を行う
+            //マップデータをロードする
             tiles.loadData(mapData);
-            //マスを透過する
+            //透過する
             tiles.opacity = 0.25;
-            //設定の終わったマス目のオブジェクトをシーンに追加する
             scene.addChild(tiles);
-            //クラスのインスタンスにマス目のオブジェクトへの参照を持たせる
             this.tiles = tiles;
 
             // マップを大きさを保存
             this.mapHeight = mapData.length;
             this.mapWidth  = mapData[0].length;
 
-            //　元のマップデータから陸や岩のcollision(あたり判定)データを生成します
-            var mapCollisionData = [];	//あたり判定データの配列を用意する
-            //マスの行数だけ繰り返すループを開始する
+            //　元のマップデータから陸や岩のcollisionデータを生成します
+            var mapCollisionData = [];
             for(var j=0; j < this.mapHeight; j++) {
-            	//白紙のj行目を追加する
-               mapCollisionData[j] = [];
-               //マスの列数だけ繰り返すループを開始する
+                mapCollisionData[j] = [];
                 for(var i=0; i < this.mapWidth; i++) {
-                	//陸、岩のマスであれば
                     if (mapData[j][i] == tileTypes.riku.id || mapData[j][i] == tileTypes.iwa.id) {
-                        mapCollisionData[j].push(1);	//通れない判定のデータを配列に追加する
-                      //それ以外のマスであれば
+                        mapCollisionData[j].push(1);
                     } else {
-                        mapCollisionData[j].push(0);	//通れる判定のデータを配列に追加する
+                        mapCollisionData[j].push(0);
                     }
                 }
             }
-            //マップのあたり判定データの参照を、クラスのマス目オブジェクトに追加する
-            this.tiles.collisionData = mapCollisionData
+            this.tiles.collisionData = mapCollisionData;
 
-            // アンダーレイヤーを用意する
+            // 検索用のデータ
+            var mapSearchData = [];
+            var mapSearchDataLight  = [];
+            var mapSearchDataHeavy  = [];
+
+            for(var j=0; j < this.mapHeight; j++) {
+                mapSearchData[j] = [];
+                mapSearchDataLight[j] = [];
+                mapSearchDataHeavy[j] = [];
+                for(var i=0; i < this.mapWidth; i++) {
+                    if (mapData[j][i] == tileTypes.riku.id || mapData[j][i] == tileTypes.iwa.id) {
+                        mapSearchData[j].push(0);
+                        mapSearchDataLight[j].push(0);
+                        mapSearchDataHeavy[j].push(0);
+                    } else {
+                        if (mapData[j][i] == tileTypes.arai.id) {
+                            mapSearchData[j].push(2);
+                            mapSearchDataLight[j].push(3);
+                            mapSearchDataHeavy[j].push(1);
+                        } else if (mapData[j][i] == tileTypes.asai.id) {
+                            mapSearchData[j].push(2);
+                            mapSearchDataLight[j].push(1);
+                            mapSearchDataHeavy[j].push(3);
+                        } else {
+                            mapSearchData[j].push(1);
+                            mapSearchDataLight[j].push(1);
+                            mapSearchDataHeavy[j].push(1);
+                        }
+                    }
+                }
+            }
+
+            this.searchGraph = new Graph(mapSearchData);
+            this.searchGraphLight = new Graph(mapSearchDataLight);
+            this.searchGraphHeavy = new Graph(mapSearchDataHeavy);
+
+            // underLayer
             var underLayer = new Group();
-            //タッチ不可能にする
             underLayer.touchEnabled = false;
-            //シーンに追加する
             scene.addChild(underLayer);
-            //クラスのオブジェクトにアンダーレイヤーへの参照を持たせる
             this.underLayer = underLayer;
 
-            //プレイレイヤーを用意する
+            // playLayer
             var playLayer = new Group();
-            //タッチ不可能にする
             playLayer.touchEnabled = false;
-            //シーンに追加する
             scene.addChild(playLayer);
-            //クラスのオブジェクトにプレイレイヤーへの参照を持たせる
             this.playLayer = playLayer;
 
-            //オーバーレイヤー
+            // overLayer
             var overLayer = new Group();
-            //タッチ不可能にする
             overLayer.touchEnabled = false;
-            //シーンに追加する
             scene.addChild(overLayer);
-            //クラスのオブジェクトにオーバーレイヤーへの参照を持たせる
             this.overLayer = overLayer;
 
-            //このクラスのオブジェクト自身への参照を変数に保存する
             var self = this;
-            //マス目のタッチを有効にする
             tiles.touchEnabled = true;
-            //マス目のタッチ終了イベントを登録する
             tiles.addEventListener(enchant.Event.TOUCH_END, function(params){
-                //タッチ終了時の処理の関数をコールする
-            	self.ontouchend(params);
+                self.ontouchend(params)
             });
-            //マス目のタッチ開始イベントを登録する
+
             tiles.addEventListener(enchant.Event.TOUCH_START, function(params){
-                //タッチ中の処理の関数をコールする
-            	self.ontouchupdate(params);
+                self.ontouchupdate(params)
             });
-            //マス目のタッチ移動イベントを登録する
+
             tiles.addEventListener(enchant.Event.TOUCH_MOVE, function(params){
-                //タッチ中の処理の関数をコールする
-                self.ontouchupdate(params);
+                self.ontouchupdate(params)
             });
-            //マス目の描画がなされるごとに起きるイベントを登録する
+
             tiles.addEventListener(enchant.Event.ENTER_FRAME, function(params){
-                self.zsort();	//Z軸の重なりを整理する
-            });
+                self.zsort();
+            })
         },
 
-        //操縦者をセットする関数
         setController: function(controller) {
-            //引数に指定されたプレイヤーを現在の操縦者としてセットする
-        	this.controller = controller;
+            this.controller = controller;
         },
-        //ワールド座標をローカル座標に変換する関数
+
         toLocalSpace:function(worldX, worldY) {
-        	//計算し、ローカル座標を割り出す
             var localX = worldX -this.tiles.x;
             var localY = worldY -this.tiles.y;
-            //座標をオブジェクトにまとめて返す
             return {x:localX, y:localY};
         },
-        //ローカル座標をワールド座標に変換する関数
+
         toWorldSpace:function(localX, localY) {
-        	//計算し、ワールド座標を割り出す
             var worldX = localX +this.tiles.x;
             var worldY = localY +this.tiles.y;
-            //座標をオブジェクトにまとめて返す
             return {x:worldX, y:worldY};
         },
-        //座標からマス目の座標を割り出す関数
+
         getMapTileAtPosition: function(localX, localY) {
             return {
-            	//座標をマス目の幅、高さで割ってマス目の座標にして返す
                 i: Math.floor(localX/64),
                 j: Math.floor(localY/64)
             };
         },
-        
-        //マス目の座標からローカル座標を割り出す関数
+
         getMapPositionAtTile: function(i,j) {
             return {
-            	//マス目の座標にマス目の高さ、幅をかけてローカル座標として返す
                 localX: i *64,
                 localY: j *64
             };
         },
-        //マス目の詳細情報を返す関数
+
         getTileInfo:function(id) {
-        	//マス目のタイプの情報をまとめた連想配列を走査する
             for(t in tileTypes) {
-            	//引数のIDとマス目情報の連想配列のキーが一致したら
                 if (tileTypes[t].id == id) {
-                	//該当する情報を返す
                     return tileTypes[t];
                 }
             }
         },
 
-        //プレイレイヤーにオブジェクトを追加する関数
         addChild: function(object) {
-        	//プレイレイヤーにオブジェクトを追加する
             this.playLayer.addChild(object);
         },
-        //オブジェクトの座標を割り出し、そのオブジェクト自身に座標情報をセットする関数
+
         positonObject: function(object, i, j) {
-        	//マス目からローカル座標を取得する
             var postion = this.getMapPositionAtTile(i, j);
-            //取得したローカル座標からワールド座標を割り出す
             var worldPosition = this.toWorldSpace(postion.localX, postion.localY);
-            
-            //オブジェクトにワールド座標を追加する
+
             object.x = worldPosition.x;
             object.y = worldPosition.y;
-            //マス目の座標もセットする
+
             object.i = i;
             object.j = j;
         },
 
-        //船の位置をセットする関数
         positionFune: function(fune, i, j) {
             this.positonObject(fune, i, j);
 
         },
-        
-        //船をアニメーションしながら移動させる関数
-        moveFune: function(fune, i, j, onEnd) {
-        	//マス目から船のローカル座標を取得する
-            var postion = this.getMapPositionAtTile(i, j);
-            //ワールド座標を取得する
-            var worldPosition = this.toWorldSpace(postion.localX, postion.localY);
-            //ワールド座標から、移動先への距離を算出する
-            var distance = utils.getEuclideanDistance(fune.i, fune.j, i, j);
 
-            //船のインスタンスに元の座標を記録する
-            fune.i = i;
-            fune.j = j;
 
-            //船を目的地までアニメーションしながら移動させる
-            fune.tl.moveTo(worldPosition.x, worldPosition.y, distance *10, enchant.Easing.QUAD_EASEINOUT).then(onEnd);
+        moveFune: function(fune, path, onEnd) {
+            if (path.length > 0) {
+                var nextMasu = path.shift();
+                var i = nextMasu.y;
+                var j = nextMasu.x;
+                var cost = nextMasu.getCost()
+
+                var postion       = this.getMapPositionAtTile(i, j);
+                var worldPosition = this.toWorldSpace(postion.localX, postion.localY);
+
+                //console.log("path length:", path.length, "move: ", i, j, worldPosition.x, worldPosition.y);
+
+                fune.i = i;
+                fune.j = j;
+
+                var self = this;
+                fune.tl.moveTo(worldPosition.x, worldPosition.y, 10 *cost, enchant.Easing.QUAD_EASEINOUT).then(function(){
+                    self.moveFune(fune, path, onEnd);
+                });
+            } else {
+                onEnd();
+            }
         },
 
-        //ユークリッド距離を取得する関数
         getEuclideanDistance: function(startI, startJ, endI, endJ) {
             return utils.getEuclideanDistance(startI, startJ, endI, endJ);
         },
-        //マンハッタン距離を取得する関数
+
         getManhattanDistance: function(startI, startJ, endI, endJ) {
             return utils.getManhattanDistance(startI, startJ, endI, endJ);
         },
-        //チェビシェフ距離を取得する関数
+
         getChebyshevDistance: function(startI, startJ, endI, endJ) {
             return utils.getChebyshevDistance(startI, startJ, endI, endJ);
         },
 
-        //座標の画面外判定を行う関数
         outOfBorders: function(i, j) {
-        	//座標がマイナスか、マップは時を超えていればtrueを返す
             if (i < 0) return true;
             if (i >= this.mapWidth) return true;
             if (j < 0) return true;
             if (j >= this.mapHeight) return true;
 
-            //どれにも当てはまらなければ、画面内判定としてfalseを返す
             return false;
         },
 
@@ -387,152 +395,137 @@ window.onload = function(){
             this.drawMovementRange()
         },
 
-        //マス目のタッチ終了イベントの関数
+
+        getPath: function(fune, i,j, targetI, targetJ) {
+            var path;
+            if (fune.moveType == "normal") {
+                var start = this.searchGraph.grid[j][i];
+                var end   = this.searchGraph.grid[targetJ][targetI];
+                path = astar.search(this.searchGraph, start, end);
+            }
+            if (fune.moveType == "light") {
+                var start = this.searchGraphLight.grid[j][i];
+                var end   = this.searchGraphLight.grid[targetJ][targetI];
+                path = astar.search(this.searchGraphLight, start, end);
+            }
+            if (fune.moveType == "heavy") {
+                var start = this.searchGraphHeavy.grid[j][i];
+                var end   = this.searchGraphHeavy.grid[targetJ][targetI];
+                path = astar.search(this.searchGraphHeavy, start, end);
+            }
+
+            path.cost = 0;
+            for(var i=0; i<path.length;i++){
+                path.cost += path[i].getCost();
+            }
+            return path;
+        },
+
         ontouchend:function(params) {
-        	//マップマーカーが表示されているなら
             if (this.mapMarker) {
-            	//オーバーレイヤー内のマップマーカーを消去する
                 this.overLayer.removeChild(this.mapMarker)
-                //クラスのオブジェクトに保存されたマップマーカーへの参照を消去する
                 delete this.mapMarker;
             }
 
-            //タッチしたローカル座標を取得する
             var localPosition = this.toLocalSpace(params.x, params.y);
 
-            //マス目のデータを取得する
             var tileData = this.tiles.checkTile(localPosition.x, localPosition.y);
-            //マス目の情報を取得する
             var tileInfo = this.getTileInfo(tileData);
 
-            //タッチしたマス目に障害物判定があれば
             if (this.tiles.hitTest(localPosition.x, localPosition.y) == true) {
-               //通れないというログを出し、何もせずに終わる
-            	console.log("通れない", tileInfo.name, "world X", params.x, "localX", localPosition.x, "worldY", params.y, "localY", localPosition.y)
-            //障害物判定がなければ
+                console.log("通れない", tileInfo.name, "world X", params.x, "localX", localPosition.x, "worldY", params.y, "localY", localPosition.y)
             } else {
-            	//通れるというログを出す
                 console.log("通れる", tileInfo.name, "world X", params.x, "localX", localPosition.x, "worldY", params.y, "localY", localPosition.y)
 
-                //座標からマス目を取得する
                 var tile = this.getMapTileAtPosition(localPosition.x, localPosition.y);
-                //タッチしたマス目が画面外なら
                 if (this.outOfBorders(tile.i, tile.j)) {
-                    return;	//処理を終える
+                    return;
                 }
-                //座標に関連するログを出す
                 console.log("i", tile.i, "j", tile.j, "distance", this.getManhattanDistance(this.activeFune.i, this.activeFune.j, tile.i, tile.j));
 
-                //船が移動可能な場所をタッチしていたら
                 if (this.getManhattanDistance(this.activeFune.i, this.activeFune.j, tile.i, tile.j) <= this.activeFune.getMovement()) {
-                    var self = this;		//自身への参照を変数に保存する
-                    utils.beginUIShield();	//UIを操作できなくする
-                    //船をアニメーションしながら移動させる
-                    self.moveFune(self.activeFune, tile.i, tile.j, function() {
-                        self.controller.endTurn();	//移動が終わったらターンを終了する
-                    });
+                    var path = this.getPath(this.activeFune, this.activeFune.i, this.activeFune.j, tile.i, tile.j);
+                    if (path.cost <= this.activeFune.getMovement()) {
+                        var self = this;
+                        utils.beginUIShield();
+                        self.moveFune(self.activeFune, path, function() {
+                            self.controller.endTurn();
+                        });
+                    }
                 }
             }
         },
-        
-        //ドラッグ中のイベントの関数
+
         ontouchupdate: function(params) {
-        	//ローカル座標のオブジェクトを取得する
             var localPosition = this.toLocalSpace(params.x, params.y);
-            //マス目を取得する
             var tile = this.getMapTileAtPosition(localPosition.x, localPosition.y);
-            //画面外判定を行う
             if (this.outOfBorders(tile.i, tile.j)) {
-                //タッチ座標が画面外であれば処理を終える
-            	return;
+                return
             }
 
-            //マップマーカーが生成されていなければ
             if (this.mapMarker == undefined) {
-            	//マップマーカーのスプライトを作り
                 this.mapMarker = new Sprite(64, 64);
-                //画像をセットして
                 this.mapMarker.image = game.assets[mapUI];
-                //座標もセットして
                 this.positonObject(this.mapMarker, tile.i, tile.j);
-                //オーバーレイヤーに追加する
                 this.overLayer.addChild(this.mapMarker);
-            //マップマーカーが生成済みであれば
             } else {
-            	//マップマーカーの座標だけ更新する
                 this.positonObject(this.mapMarker, tile.i, tile.j);
             }
 
-            //マップマーカーが指すマスにあたり判定があれば
             if (this.tiles.hitTest(localPosition.x, localPosition.y) == true) {
-            	//マップマーカーをの色を灰色にして、移動できない場所であることを伝える
-            	this.mapMarker.frame = 1;
-            //あたり判定がなければ
+                this.mapMarker.frame = 1;
             } else {
-                //船の移動力からして移動可能の場所であれば
-            	if (this.getManhattanDistance(this.activeFune.i, this.activeFune.j, tile.i, tile.j) <= this.activeFune.getMovement()) {
-                	//マップマーカーをの色を赤にして、移動できる場所であることを伝える
-                    this.mapMarker.frame = 0;
-               //遠すぎたら
-            	} else {
-                	//マップマーカーをの色を灰色にして、移動できない場所であることを伝える
+                if (this.getManhattanDistance(this.activeFune.i, this.activeFune.j, tile.i, tile.j) <= this.activeFune.getMovement()) {
+                    var path = this.getPath(this.activeFune, this.activeFune.i, this.activeFune.j, tile.i, tile.j);
+                    if (path.cost <= this.activeFune.getMovement()) {
+                        this.mapMarker.frame = 0;
+                    } else {
+                        this.mapMarker.frame = 1;
+                    }
+                } else {
                     this.mapMarker.frame = 1;
                 }
             }
         },
 
-        //移動可能領域を表示する関数
         drawMovementRange: function() {
-        	//描画をおこなうごとにコンソールにログを出す
-            console.log("update drawMovementRange");
-            //移動可能場所のレイヤーがある状態なら
+            console.log("update drawMovementRange")
             if (this.areaRangeLayer) {
-            	//既存の移動可能場所のレイヤーを消す
                 this.underLayer.removeChild(this.areaRangeLayer);
                 delete this.areaRangeLayer;
             }
 
-            //移動可能場所のレイヤーのベースを作る
             this.areaRangeLayer = new Group();
-            //アンダーレイヤーに移動可能場所のレイヤーを加える
             this.underLayer.addChild(this.areaRangeLayer);
 
-            //船の移動力のマイナス値からプラス値の範囲まで走査する
             for (var rangeI = -this.activeFune.getMovement(); rangeI <= this.activeFune.getMovement(); rangeI++) {
-                //現在描画対象となっている行の座標を割り出す
-            	var targetI = this.activeFune.i +rangeI;
-            	//列側の走査を行う
+                var targetI = this.activeFune.i +rangeI;
                 for (var rangeJ = -this.activeFune.getMovement(); rangeJ <= this.activeFune.getMovement(); rangeJ++) {
-                    //対象となる列番号を割り出す
-                	var targetJ = this.activeFune.j +rangeJ;
-                	//マス目が画面外でなければ
+                    var targetJ = this.activeFune.j +rangeJ;
+
                     if (!this.outOfBorders(targetI, targetJ)) {
-                        //座標が移動力の範囲内であれば
-                    	if (this.getManhattanDistance(this.activeFune.i, this.activeFune.j, targetI, targetJ) <= this.activeFune.getMovement()) {
-                            //移動可能領域のマスのスプライトを作る
-                    		var areaSprite = new Sprite(64, 64);
-                    		//タッチできないようにする
-                            areaSprite.touchEnabled = false;
-                            //画像をセットする
-                            areaSprite.image = game.assets[mapUI];
-                            //位置のオブジェクトを作成する
-                            var position = this.getMapPositionAtTile(targetI, targetJ);
-                            //あたり判定テストを行い、あたり判定がある場所であれば
-                            if (this.tiles.hitTest(position.localX, position.localY) == true) {
-                                areaSprite.frame = 3;	//移動可能領域のマスの色を3番のものにする
-                            //移動可能の場所であったら
-                            } else {
-                                areaSprite.frame = 2;	//2番の色にする
+                        if (this.getManhattanDistance(this.activeFune.i, this.activeFune.j, targetI, targetJ) <= this.activeFune.getMovement()) {
+                            var path = this.getPath(this.activeFune, this.activeFune.i, this.activeFune.j, targetI, targetJ);
+                            if (path.cost <= this.activeFune.getMovement()) {
+                                var areaSprite = new Sprite(64, 64);
+                                areaSprite.touchEnabled = false;
+                                areaSprite.image = game.assets[mapUI];
+                                var position = this.getMapPositionAtTile(targetI, targetJ);
+
+                                if (this.tiles.hitTest(position.localX, position.localY) == true) {
+                                    areaSprite.frame = 3;
+                                } else {
+                                    areaSprite.frame = 2;
+                                }
+                                this.positonObject(areaSprite, targetI, targetJ);
+                                this.areaRangeLayer.addChild(areaSprite);
                             }
-                            //座標を保存する
-                            this.positonObject(areaSprite, targetI, targetJ);
-                            //移動可能領域のマスを移動可能領域レイヤーにセットする
-                            this.areaRangeLayer.addChild(areaSprite);
                         }
                     }
                 }
             }
         },
+
         zsort: function() {
             var zorder = [];
             for (var c=0; c < this.playLayer.childNodes.length; ++c) {
@@ -557,7 +550,6 @@ window.onload = function(){
                 this.playLayer.addChild(zorder[i]);
             }
         }
-
     });
 
 
@@ -594,7 +586,7 @@ window.onload = function(){
             healthGreenSprite.image = game.assets[uiHealthGreen];
             healthGreenSprite.y     = 64 -6;
             this.addChild(healthGreenSprite);
-            
+
             this.stats    = {
                 id:        id,
                 movement:  stats.movement,
@@ -605,6 +597,8 @@ window.onload = function(){
             };
             this.stats.hp = this.stats.hpMax;
 
+            this.moveType   = "normal";
+            this.usedSkill  = false;
         },
 
         getId: function() {
@@ -639,6 +633,10 @@ window.onload = function(){
             return "無名";
         },
 
+        getSkillName: function() {
+            return "無名";
+        },
+
         getImage: function() {
             return game.assets[pirateSprites[this.getId() -1]]
         },
@@ -646,129 +644,124 @@ window.onload = function(){
         getChibiImage: function() {
             return game.assets[pirateChibiSprites[this.getId() -1]]
         },
-        //攻撃範囲の計算を行い、可能かどうかを返す
+
         withinRange: function(i, j) {
-        	//自身の船と相手の船の距離をマンハッタン距離で導出する
             var distance = utils.getManhattanDistance(this.i, this.j, i, j);
-            //情報をログに流す
             console.log("withinRange", "distance", distance, "range", this.stats.range, distance <= this.stats.range);
-            //攻撃可能の範囲であれば
             if (distance <= this.stats.range) {
-                return true;	//trueを返す
-            //そうでなければ
+                return true;
             } else {
-            	//falseを返す
                 return false;
             }
         },
-        //HPバーを更新する関数
+
         updateHPBar: function() {
-        	//最大HPと現在のHPから比率を計算する
             var ratio = Math.max(this.stats.hp / this.stats.hpMax, 0);
-            //HPが50%以上であれば
             if (ratio > 0.5) {
-            	//比率の分だけ緑のバーを表示する
                 this.healthGreenSprite.scaleX = ratio;
-            //50%を割ったら
             } else {
-            	//緑のバーを消す
                 this.healthGreenSprite.scaleX = 0;
             }
-            //赤いバーを比率に合わせて動かす
             this.healthRedSprite.scaleX = ratio;
         },
 
-        //ダメージ計算を行う関数
         takeDamage: function(damage) {
-        	//純ダメージを計算する
             var actualDamage = Math.max(damage -this.stats.defense, 1);
-            //現在のHPからダメージ分を引く
             this.stats.hp -= actualDamage;
-            //ダメージ計算の結果をHPバーに反映する
             this.updateHPBar();
-            //計算後のHPを返す
             return this.stats.hp;
         },
-        //ダメージ回復の処理を行う関数
+
         healDamage: function(recover) {
-        	//recover分HPを回復させる。最大HPを超えたらその分は切り捨てる
             this.stats.hp = Math.min(this.stats.hp + recover, this.stats.hpMax);
+            this.updateHPBar();
         },
 
-        //船の攻撃処理の関数
         attackFune: function(otherFune) {
             utils.beginUIShield();
-           var damage;								//ダメージの値を格納する変数
-            var baseDamage = this.stats.attack;		//攻撃側の船の攻撃力をダメージのベース値にする
-            var variance   = Math.random() -0.5;	//ダメージのぶれの値を乱数生成する
-            //変動が入ったダメージの計算を行う
+            var damage;
+            var baseDamage = this.stats.attack;
+            var variance   = Math.random() -0.5;
             var variableDamage = (baseDamage /10) * variance;
 
-            //ヒット判定の乱数を生成する
             var attackRoll = Math.random();
-
-            //1割の確率で
-            if (attackRoll > 0.9) {	
-                // クリティカルヒット。ダメージが2倍になる
+            var isCritical = false;
+            // クリティカルヒット 10%
+            // ミス 10%
+            if (attackRoll > 0.11) {
+                // クリティカル　ダメージx2
                 damage = (baseDamage +variableDamage) *2;
-                //クリティカルヒットのメッセージを出す
-                alert("Critical!")
-            //1割の確率で
+                var isCritical = true;
             } else if (attackRoll < 0.1) {
-                //攻撃がミスとなる
+                // ミス ダメージ 0
                 damage = 0;
-            //乱数がどちらの範囲にも当てはまらなければ
             } else {
-            	//基礎ダメージ+ダメージ変動分をダメージとして扱う
                 damage = baseDamage +variableDamage;
             }
 
-            //ダメージの値に小数点以下があれば丸める
             damage = Math.ceil(damage);
-            //ダメージが通っていれば
+
             if (damage > 0) {
-            	//攻撃対象の船のHPを持ってくる
                 var beforeHp = otherFune.getHP();
-                //ダメージ計算を行い、計算後のHPを割り出す
                 var afterHp  = otherFune.takeDamage(damage);
-                
-                //爆発エフェクトを作る
+
                 var explosion = new Explosion();
-                //爆発エフェクトが発生する座標を指定する
                 explosion.x = otherFune.x +32;
                 explosion.y = otherFune.y +32;
-
-                //カレントのシーンに爆発エフェクトを投入する
+                this.player.controller.sndManager.playFX(sndExplosion);
                 game.currentScene.addChild(explosion);
 
-                this.player.controller.sndManager.playFX(sndExplosion);
-                
-                //ダメージ計算の結果を表示する
-                alert("beforeHp: "+beforeHp+" -"+damage+"(-DEF) ="+afterHp);
-                //HPが削られきったら
-                if (afterHp <= 0) {
-                	//船がやられたメッセージを出す
-                    alert("沈没した！");
-                    //船の沈没処理の関数をコールする
-                    otherFune.sinkShip();
+                if (isCritical) {
+                    var alertWindow = new AlertWindow("クリティカル！", this.player.controller);
+                    var self = this;
+                    alertWindow.onTouch = function() {
+                        if (afterHp <= 0) {
+                            var alertWindow = new AlertWindow("沈没...", self.player.controller);
+                            alertWindow.onTouch = function() {
+                                otherFune.sinkShip();
+                                self.player.controller.endTurn();
+                            }
+                        } else {
+                            self.player.controller.endTurn();
+                        }
+                    }
+                } else {
+                    if (afterHp <= 0) {
+                        var alertWindow = new AlertWindow("沈没...", this.player.controller);
+                        var self = this;
+                        alertWindow.onTouch = function() {
+                            otherFune.sinkShip();
+                            self.player.controller.endTurn();
+                        }
+                    } else {
+                        this.player.controller.endTurn();
+                    }
+
                 }
-            //ダメージが通っていなければ
+
             } else {
-            	//攻撃のミスが発生したと表示する
-                alert("ミス！");
+                var alertWindow = new AlertWindow("ミス！", this.player.controller);
+                var self = this;
+                alertWindow.onTouch = function() {
+                    self.player.controller.endTurn();
+                }
             }
-            //ターンを終える
-            this.player.controller.endTurn();
         },
-        //タッチを行った後の関数
+
         ontouchend: function(params) {
-        	//アクティブのプレイヤーであれば
             if (this.player.isActive()) {
-            	//ステータスのポップアップを表示する
                 if (this.player.getActiveFune() == this) {
-                    var popup = new StatusWindow(this);
+                    var popup = new FunePopup(this);
                     popup.onCancel = function() {
 
+                    }
+                    var self = this;
+                    popup.onSkill = function() {
+                        if (self.canUseSkill()) {
+                            self.activateSkill(function() {
+                                self.player.controller.endTurn();
+                            })
+                        }
                     }
                 } else {
                     this.player.setActiveFune(this);
@@ -779,15 +772,54 @@ window.onload = function(){
                 if (activeFune.withinRange(this.i, this.j)) {
                     activeFune.attackFune(this);
                 } else {
-                    alert("攻撃は届けません");
+                    new AlertWindow("攻撃は届けません", this.player.controller);
                 }
             }
+        },
+
+        activateSkill: function(onEnd) {
+            utils.beginUIShield();
+            this.usedSkill = true;
+            var pirateChibi = new Sprite(512, 512);
+            pirateChibi.image = this.getChibiImage();
+            pirateChibi.opacity = 0;
+            if (this.scaleX > 0) {
+                pirateChibi.x = -50;
+            } else {
+                pirateChibi.x = 960 -512 +50;
+            }
+            var alertWindow = new AlertWindow(this.getSkillName(), this.player.controller);
+            alertWindow.addChild(pirateChibi, alertWindow.firstChild);
+            pirateChibi.tl.fadeIn(10);
+            var self = this;
+            alertWindow.onTouch = function() {
+                self.processSkill(onEnd);
+            }
+        },
+
+        processSkill: function(onEnd) {
+            onEnd();
+        },
+
+        refreshSkill: function() {
+            this.usedSkill = false;
+        },
+
+        canUseSkill: function() {
+            return this.usedSkill == false;
         },
 
         sinkShip: function() {
             this.player.controller.sndManager.playFX(sndSinkShip);
             this.player.removeFune(this);
-            this.parentNode.removeChild(this);
+            this.fune.frame = this.fune.sinkFrame;
+            this.counter = 1;
+            this.onenterframe = function(){ // enterframe event listener
+                this.counter++;
+                if (this.counter == 12 ) {
+                    this.parentNode.removeChild(this);
+                }
+            };
         }
     });
 
@@ -811,7 +843,21 @@ window.onload = function(){
 
         getCaptainName: function() {
             return "キャプテン";
-        }
+        },
+
+        getSkillName: function() {
+            return "オウエン";
+        },
+
+        processSkill: function(onEnd) {
+            var count = this.player.getFuneCount();
+            for(var i=0; i < count; i++) {
+                var fune = this.player.getFune(i);
+                var toHeal = Math.ceil(fune.getHPMax() /2);
+                fune.healDamage(toHeal);
+            }
+            onEnd();
+        },
     });
 
     var HayaiFune = Class.create(BaseFune, {
@@ -824,13 +870,23 @@ window.onload = function(){
                 hpMax:    80,
             });
 
+            this.moveType   = "light";
             this.fune.frame = [8, 8, 8, 8, 9, 9, 9, 10, 10, 9, 9, 8, 8, 8, 8, 11, 11, 11];
             this.fune.sinkFrame = [11, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, null];
         },
 
         getCaptainName: function() {
             return "はやいちゃん";
-        }
+        },
+
+        getSkillName: function() {
+            return "ハリーアップ";
+        },
+
+        processSkill: function(onEnd) {
+            this.player.controller.getFreeTurns(this.player, 2);
+            onEnd();
+        },
     });
 
     var KataiFune = Class.create(BaseFune, {
@@ -843,13 +899,38 @@ window.onload = function(){
                 hpMax:   240,
             });
 
+            this.moveType   = "heavy";
             this.fune.frame = [16, 16, 16, 16, 17, 17, 17, 18, 18, 17, 17, 16, 16, 16, 16, 19, 19, 19];
             this.fune.sinkFrame = [19, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, null];
+            this.indestructible = false;
         },
 
         getCaptainName: function() {
             return "かたいちゃん";
-        }
+        },
+
+        getSkillName: function() {
+            return "アイロンシールド";
+        },
+
+        processSkill: function(onEnd) {
+            this.indestructible = true;
+            onEnd();
+        },
+
+        attackFune: function(otherFune) {
+            this.indestructible = false;
+            BaseFune.prototype.attackFune.call(this, otherFune);
+        },
+
+        takeDamage: function(damage) {
+            if (this.indestructible) {
+                this.indestructible = false
+                return this.getHP()
+            } else {
+                return BaseFune.prototype.takeDamage.call(this, damage);
+            }
+        },
     });
 
     var KougekiFune = Class.create(BaseFune, {
@@ -868,31 +949,46 @@ window.onload = function(){
 
         getCaptainName: function() {
             return "こうげきちゃん";
-        }
+        },
+
+        getSkillName: function() {
+            return "バレットストーム";
+        },
+
+        processSkill: function(onEnd) {
+            var damage = this.stats.attack;
+            var count = this.player.controller.getNonActivePlayer().getFuneCount();
+            for(var i=0; i < count; i++) {
+                var fune = this.player.controller.getNonActivePlayer().getFune(i);
+                if (this.withinRange(fune.i, fune.j)) {
+                    var afterHp = fune.takeDamage(damage);
+                    var explosion = new Explosion();
+                    explosion.x = fune.x +32;
+                    explosion.y = fune.y +32;
+                    this.player.controller.sndManager.playFX(sndExplosion);
+                    game.currentScene.addChild(explosion);
+
+                    if (afterHp <= 0) {
+                        fune.sinkShip();
+                    }
+                }
+            }
+            onEnd();
+        },
     });
-    
-    //爆発エフェクトのクラス
+
     var Explosion = Class.create(Sprite, {
-    	//コンストラクタ
         initialize: function(id, stats) {
-        	//スプライトを作る
             Sprite.call(this, 32, 32);
-            
-            //爆発エフェクトのスプライトシートを画像ソースにセットする
+
             this.image = game.assets[explosionSpriteSheet];
-            //アニメーションをセットする
             this.frame = [0,1,2,3,1,2,3,4,null];
 
-            //アニメーションのフレームのカウンター
             this.counter = 0;
         },
-        //フレームが切り替わったときのイベント
         onenterframe:function(){ // enterframe event listener
-        	//カウンターを回す
             this.counter++;
-			//最後のカウンターになったら
             if (this.counter == 9 ) {
-            	//自分自身を消してエフェクトを終える
                 this.parentNode.removeChild(this);
             }
         },
@@ -903,8 +999,8 @@ window.onload = function(){
      */
     var GamePlayer = Class.create({
         initialize: function(id, data) {
-        	this.id = id;
             this.funeList = [];
+            this.id   = id;
             this.data = data;
         },
 
@@ -956,6 +1052,12 @@ window.onload = function(){
         getFuneCount: function() {
             return this.funeList.length;
         },
+        
+        //船の数の初期値を取得する関数
+        getFuneCountInitial: function() {
+        	//船の初期値を返す
+            return this.funeCountInitial;
+        },
 
         getActiveFune: function() {
             if (this.activeFune) {
@@ -971,6 +1073,484 @@ window.onload = function(){
         },
     });
 
+/* AIプレイヤーの定義 */
+    var AIPlayer = Class.create(GamePlayer, {
+        initialize: function(id, data) {
+            GamePlayer.call(this, id, data);
+            this.state = new OpeningState(this);
+        },
+
+        resetState: function() {
+            this.state = new OpeningState(this);
+            this.funeCountInitial = 0;
+        },
+
+        simulatePlay: function() {
+            this.state = this.state.updateState();
+            var action = this.state.chooseAction();
+
+            this.setActiveFune(action.fune);
+
+            var self = this;
+            setTimeout(function() {
+                switch(action.type) {
+                    case "attack":
+                        action.fune.attackFune(action.target);
+                        break;
+                    case "skill":
+                        action.fune.activateSkill(function() {
+                            self.controller.endTurn();
+                        })
+                        break;
+                    case "move":
+                        if (action.path && action.path.length > 0) {
+                            self.controller.map.moveFune(action.fune, action.path, function() {
+                                self.controller.endTurn();
+                            })
+                        } else {
+                            self.controller.endTurn();
+                        }
+                        break;
+                }
+            }, 1000);
+        },
+    });
+
+    //
+    var BaseState = Class.create({
+        initialize: function(player) {
+            this.player = player;
+        },
+
+        updateState: function() {
+            return this;
+        },
+
+        chooseAction: function() {
+            // Choose randomly
+            var maxFuneIndex = this.player.getFuneCount();
+            var funeIndex    = Math.floor(Math.random() * maxFuneIndex);
+            var fune         = this.player.getFune(funeIndex);
+
+            // Use skill randomly
+            if (fune.canUseSkill() && Math.random() < 0.1) {
+                return {
+                    type: "skill",
+                    fune: fune,
+                }
+            }
+
+            // Search for nearby enemies
+            var count = this.player.controller.getNonActivePlayer().getFuneCount();
+            for(var i=0; i < count; i++) {
+                var targetFune = this.player.controller.getNonActivePlayer().getFune(i);
+                if (fune.withinRange(targetFune.i, targetFune.j)) {
+                    return {
+                        type:   "attack",
+                        fune:   fune,
+                        target: targetFune,
+                    }
+                }
+            }
+
+            // If no actions taken then move randomly
+            var openOnly = true;
+            var moveList = this.player.controller.map.getMovementRange(fune, openOnly);
+            var randomIndex = Math.floor(Math.random() * moveList.length);
+            var targetPosition = moveList[randomIndex];
+
+            var path     = this.player.controller.map.getPath(fune, fune.i, fune.j, targetPosition.i, targetPosition.j);
+            return {
+                type:"move",
+                fune: fune,
+                path: path,
+            };
+        },
+
+        getRandomFune: function() {
+            var maxFuneIndex = this.player.getFuneCount();
+            var funeIndex    = Math.floor(Math.random() * maxFuneIndex);
+            var fune         = this.player.getFune(funeIndex);
+            return fune;
+        },
+
+        getTargetsWithinRange: function(fune) {
+            var targets    = [];
+            var otherCount = this.player.controller.getNonActivePlayer().getFuneCount();
+            for(var j=0; j < otherCount; j++) {
+                var targetFune = this.player.controller.getNonActivePlayer().getFune(j);
+                if (fune.withinRange(targetFune.i, targetFune.j)) {
+                    targets.push(targetFune);
+                }
+            }
+            return targets;
+        },
+
+        isTargeted: function(fune) {
+            var otherCount = this.player.controller.getNonActivePlayer().getFuneCount();
+            for(var j=0; j < otherCount; j++) {
+                var targetFune = this.player.controller.getNonActivePlayer().getFune(j);
+                if (targetFune.withinRange(fune.i, fune.j)) {
+                    return true;
+                }
+            }
+            return false;
+        },
+
+        getMovePosition: function(fune, avoidEnemyRate) {
+            var openOnly = true;
+            var moveList = this.player.controller.map.getMovementRange(fune, openOnly);
+            var moveTargetList = [];
+            for (var i=0; i < moveList.length; i++) {
+                var targetPosition = moveList[i];
+                var otherCount = this.player.controller.getNonActivePlayer().getFuneCount();
+                for(var j=0; j < otherCount; j++) {
+                    var otherFune = this.player.controller.getNonActivePlayer().getFune(j);
+                    if (otherFune.withinRange(targetPosition.i, targetPosition.j)) {
+                        if (Math.random() < avoidEnemyRate) {
+                            continue;
+                        }
+                    }
+                    moveTargetList.push(targetPosition)
+                }
+            }
+            return moveTargetList;
+        },
+
+        getRandomPath: function(fune, avoidEnemyRate) {
+            var moveList = this.getMovePosition(fune, avoidEnemyRate);
+            var pathList = [];
+            for (var i=0; i < moveList.length; i++) {
+                var targetPosition = moveList[i];
+                var path = this.player.controller.map.getPath(fune, fune.i, fune.j, targetPosition.i, targetPosition.j);
+                if (path.length > 0) {
+                    pathList.push(path);
+                }
+            }
+
+            var path = pathList[Math.floor(Math.random() * pathList.length)];
+            return path;
+        },
+
+        sortPathByLength: function(pathList) {
+            pathList.sort(function(a, b) {
+              if (a.length < b.length)
+                 return 1;
+              if (a.length > b.length)
+                return -1;
+              return 0;
+            });
+            return pathList;
+        },
+
+        testSkillUseInCombat: function(fune) {
+            if (fune.canUseSkill()) {
+                if (fune instanceof CaptainFune) {
+                    // Should Captain Heal ships?
+                    var count = this.player.getFuneCount();
+                    var woundedCount = 0;
+                    for(var j=0; j < count; j++) {
+                        var woundedFune = this.player.getFune(j);
+                        if (woundedFune.getHP() < (woundedFune.getHPMax() *0.7)) {
+                            woundedCount++;
+                        }
+                    }
+                    if (Math.random() <= (woundedCount/this.player.getFuneCount()) ) {
+                        return {
+                            type: "skill",
+                            fune: fune,
+                        }
+                    }
+                } else if (fune instanceof KougekiFune) {
+                    // Should kougeki use attack skill
+                    var targetCount = 0;
+                    // look for attack targets
+                    var otherCount = this.player.controller.getNonActivePlayer().getFuneCount();
+                    for(var j=0; j < otherCount; j++) {
+                        var targetFune = this.player.controller.getNonActivePlayer().getFune(j);
+                        if (fune.withinRange(targetFune.i, targetFune.j)) {
+                            targetCount++;
+                        }
+                    }
+                    if (Math.random() <= (targetCount *0.3) ) {
+                        return {
+                            type: "skill",
+                            fune: fune,
+                        }
+                    }
+                } else {
+                    // Other skills are used randomly
+                    if (Math.random() < 0.2) {
+                        return {
+                            type: "skill",
+                            fune: fune,
+                        }
+                    }
+                }
+            }
+            return;
+        }
+    });
+
+    //序盤(最初に射程圏内に入る前)のAI
+    var OpeningState = Class.create(BaseState, {
+        updateState: function() {
+            var count = this.player.getFuneCount();
+            for(var i=0; i < count; i++) {
+                var fune    = this.player.getFune(i);
+                var targets = this.getTargetsWithinRange(fune);
+                if (targets.length > 0) {
+                    console.log("AI switch from OpeningState to MidGameState");
+                    return new MidGameState(this.player);
+                }
+            }
+            console.log("AI in OpeningState");
+            return this;
+        },
+
+        chooseAction: function() {
+            var fune         = this.getRandomFune();
+
+            // Skill
+            if (fune instanceof KataiFune) {
+                if (fune.canUseSkill() && Math.random() < 0.3) {
+                    console.log("AI use skill", fune.getCaptainName(), fune.getSkillName());
+                    return {
+                        type: "skill",
+                        fune: fune,
+                    }
+                }
+            } else {
+                // Other skills are not used in Opening Phase
+            }
+
+            // If no actions taken then move randomly
+            var moveList = this.getMovePosition(fune, 0.25);
+            var pathList = [];
+            for (var i=0; i < moveList.length; i++) {
+                var targetPosition = moveList[i];
+                if (targetPosition.i <= (fune.i +2) && targetPosition.j >= (fune.j -2)) {
+                    pathList.push(this.player.controller.map.getPath(fune, fune.i, fune.j, targetPosition.i, targetPosition.j));
+                }
+            }
+            // Longer paths first
+            pathList = this.sortPathByLength(pathList);
+            // Choose from the 30% longest paths
+            var randomLongPathIndex = Math.floor(Math.random() *(pathList.length *0.3));
+            var path = pathList[randomLongPathIndex];
+            if (path == null) {
+                console.log("AI no safe path");
+                path = this.getRandomPath(fune, 0.0);
+            }
+            console.log("AI random long Move", fune.getCaptainName());
+            return {
+                type: "move",
+                fune: fune,
+                path: path,
+            };
+        },
+    });
+
+    //中盤時のAI
+    var MidGameState = Class.create(BaseState, {
+        updateState: function() {
+            // We are losing
+            if (this.player.getFuneCount() <= Math.ceil(this.player.getFuneCountInitial() /2)) {
+                console.log("AI switch from MidGameState to EndGameBadState");
+                return new EndGameBadState(this.player);
+            }
+            // We are winning
+            if (this.player.controller.getNonActivePlayer().getFuneCount() <= Math.ceil(this.player.controller.getNonActivePlayer().getFuneCountInitial() /2)) {
+                console.log("AI switch from MidGameState to EndGameGoodState");
+                return new EndGameGoodState(this.player);
+            }
+            console.log("AI in MidGameState");
+            return this;
+        },
+
+        chooseAction: function() {
+            var count = this.player.getFuneCount();
+            for(var i=0; i < count; i++) {
+                var fune = this.player.getFune(i);
+
+                // skill を使う
+                var skillUse = this.testSkillUseInCombat(fune);
+                if (skillUse) {
+                    console.log("AI use skill", fune.getCaptainName(), fune.getSkillName());
+                    return skillUse;
+                }
+
+                // look for attack targets
+                var targets = this.getTargetsWithinRange(fune);
+                if (targets.length > 0) {
+                    if (Math.random() < 0.7) {
+                        var target = targets[Math.floor(Math.random() *targets.length)];
+                        console.log("AI attack from", fune.getCaptainName(), "on", target.getCaptainName());
+                        return {
+                            type:   "attack",
+                            fune:   fune,
+                            target: target,
+                        }
+                    }
+                }
+
+                //wounded ships try to escape
+                if (fune.getHP() < (fune.getHPMax() * 0.5) ) {
+                    if (Math.random() < 0.3) {
+                        if (this.isTargeted(fune)) {
+                            var path = this.getRandomPath(fune, 0.9);
+                            if (path) {
+                                console.log("AI escaping", fune.getCaptainName());
+                                return {
+                                    type:"move",
+                                    fune: fune,
+                                    path: path,
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // If no actions taken then move randomly
+            var fune = this.getRandomFune();
+            var path = this.getRandomPath(fune, 0.5);
+            if (path == null) {
+                console.log("AI no safe path");
+                path = this.getRandomPath(fune, 0.0);
+            }
+            console.log("AI random move", fune.getCaptainName());
+            return {
+                type:"move",
+                fune: fune,
+                path: path,
+            }
+        },
+    });
+
+    //終盤優勢時のAI
+    var EndGameGoodState = Class.create(BaseState, {
+        updateState: function() {
+            if (this.player.getFuneCount() < this.player.controller.getNonActivePlayer().getFuneCount()) {
+                console.log("AI switch from EndGameGoodState to EndGameBadState");
+                return new EndGameBadState(this.player);
+            }
+            console.log("AI in EndGameGoodState");
+            return this;
+        },
+
+        chooseAction: function() {
+            var count = this.player.getFuneCount();
+            for(var i=0; i < count; i++) {
+                var fune = this.player.getFune(i);
+
+                // skill を使う
+                var skillUse = this.testSkillUseInCombat(fune);
+                if (skillUse) {
+                    console.log("AI use skill", fune.getCaptainName(), fune.getSkillName());
+                    return skillUse;
+                }
+
+                // look for attack targets
+                var targets = this.getTargetsWithinRange(fune);
+                if (targets.length > 0) {
+                    if (Math.random() < 0.9) {
+                        var target = targets[Math.floor(Math.random() *targets.length)];
+                        console.log("AI attack from", fune.getCaptainName(), "on", target.getCaptainName());
+                        return {
+                            type:   "attack",
+                            fune:   fune,
+                            target: target,
+                        }
+                    }
+                }
+            }
+            // If no actions taken then move randomly
+            var fune = this.getRandomFune();
+            var path = this.getRandomPath(fune, 0.5);
+            if (path == null) {
+                console.log("AI no safe path");
+                path = this.getRandomPath(fune, 0.0);
+            }
+            console.log("AI random move", fune.getCaptainName());
+            return {
+                type:"move",
+                fune: fune,
+                path: path,
+            }
+        },
+    });
+
+    //終盤劣勢時のAI
+    var EndGameBadState = Class.create(BaseState, {
+        updateState: function() {
+            if (this.player.getFuneCount() > this.player.controller.getNonActivePlayer().getFuneCount()) {
+                console.log("AI switch from EndGameBadState to EndGameGoodState");
+                return new EndGameGoodState(this.player);
+            }
+            console.log("AI in EndGameBadState");
+            return this;
+        },
+
+        chooseAction: function() {
+            var count = this.player.getFuneCount();
+            for(var i=0; i < count; i++) {
+                var fune = this.player.getFune(i);
+
+                //wounded ships try to escape
+                if (fune.getHP() < (fune.getHPMax() * 0.5) ) {
+                    if (Math.random() < 0.5) {
+                        if (this.isTargeted(fune)) {
+                            var path = this.getRandomPath(fune, 0.9);
+                            if (path) {
+                                console.log("AI escaping", fune.getCaptainName());
+                                return {
+                                    type:"move",
+                                    fune: fune,
+                                    path: path,
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // skill を使う
+                var skillUse = this.testSkillUseInCombat(fune);
+                if (skillUse) {
+                    console.log("AI use skill", fune.getCaptainName(), fune.getSkillName());
+                    return skillUse;
+                }
+
+                // look for attack targets
+                var targets = this.getTargetsWithinRange(fune);
+                if (targets.length > 0) {
+                    if (Math.random() < 0.9) {
+                        var target = targets[Math.floor(Math.random() *targets.length)];
+                        console.log("AI attack from", fune.getCaptainName(), "on", target.getCaptainName());
+                        return {
+                            type:   "attack",
+                            fune:   fune,
+                            target: target,
+                        }
+                    }
+                }
+            }
+            // If no actions taken then move randomly
+            var fune = this.getRandomFune();
+            var path = this.getRandomPath(fune, 0.8);
+            if (path == null) {
+                console.log("AI no safe path");
+                path = this.getRandomPath(fune, 0.0);
+            }
+            console.log("AI random move", fune.getCaptainName());
+            return {
+                type:"move",
+                fune: fune,
+                path: path,
+            }
+        },
+    });
+    
+/* AIプレイヤーの定義終了 */
 
     /**
      * ゲーム管理クラス
@@ -979,7 +1559,8 @@ window.onload = function(){
         initialize: function() {
             this.playerList = [];
             this.turnCounter = 0;
-            
+            this.mode = "";
+
             this.sndManager = new SoundManager();
         },
 
@@ -994,7 +1575,7 @@ window.onload = function(){
         },
 
         setFrameUI: function(ui) {
-            this.frameUi = ui;
+            this.frameUI = ui;
             ui.manager = this;
         },
 
@@ -1006,144 +1587,319 @@ window.onload = function(){
             return this.playerList[this.turnCounter % this.playerList.length];
         },
 
+        getPlayer: function(number) {
+            return this.playerList[number -1];
+        },
+
         getNonActivePlayer: function() {
            return this.playerList[(this.turnCounter +1) % this.playerList.length];
         },
 
-        beginGame: function() {
-            var player1 = this.playerList[0];
-            for(var funeIndex = 0; funeIndex < player1.getFuneCount(); funeIndex++) {
-                var fune = player1.getFune(funeIndex);
-                this.map.addChild(fune);
-                var startPosition = this.startPositions.player1[funeIndex]
-                this.map.positionFune(fune, startPosition.i, startPosition.j);
+        beginVersusGame: function() {
+            this.mode = "versus";
+
+            // 船の初期の位置
+            var startPositions = {
+                player1: [
+                    {i: 0, j: 8}, {i: 0, j: 6}, {i: 1, j: 7}, {i: 2, j: 8}
+                ],
+                player2: [
+                    {i: 12, j: 0}, {i: 10, j: 0}, {i: 11, j: 1}, {i: 12, j: 2}
+                ],
             }
+            this.setStartPositions(startPositions);
 
-            var player2 = this.playerList[1];
-            for(var funeIndex = 0; funeIndex < player2.getFuneCount(); funeIndex++) {
-                var fune = player2.getFune(funeIndex);
-                fune.originX = 32;
-                fune.scaleX = -1;
-                this.map.addChild(fune);
-                var startPosition = this.startPositions.player2[funeIndex]
-                this.map.positionFune(fune, startPosition.i, startPosition.j);
+            // プレイヤー１
+            var player1 = new GamePlayer(1, {name:"プレイヤー１"});
+            this.addPlayer(player1);
+            // プレイヤー1に船を４つあげよう
+            player1.addFune(new CaptainFune(1));
+            player1.addFune(new HayaiFune(2));
+            player1.addFune(new KataiFune(3));
+            player1.addFune(new KougekiFune(4));
 
-            }
+            this.placePlayerShips(player1);
 
+            // プレイヤー２
+            var player2 = new GamePlayer(2, {name:"プレイヤー２"});
+            this.addPlayer(player2);
+            // プレイヤー1に船を４つあげよう
+            player2.addFune(new CaptainFune(1));
+            player2.addFune(new HayaiFune(2));
+            player2.addFune(new KataiFune(3));
+            player2.addFune(new KougekiFune(4));
+
+            this.placePlayerShips(player2);
+
+            this.sndManager.playBGM();
             this.startTurn();
         },
 
-        startTurn: function() {
-            var player = this.getActivePlayer();
-            player.setActive(true);
+        beginCampaignGame: function(stageId) {
+            this.mode = "campaign";
 
+            var funeList;
+            var saveData = $.jStorage.get("save data");
+            if (saveData) {
+                stageId  = saveData.stageId;
+                funeList = saveData.funeList;
+            }
+
+            // プレイヤー１
+            var player1 = new GamePlayer(1, {name:"プレイヤー１"});
+            this.addPlayer(player1);
+
+            if (funeList) {
+                for(var funeIndex = 0; funeIndex < funeList.length; funeIndex++) {
+                    var fune = this.funeFactory(funeList[funeIndex]);
+                    player1.addFune(fune);
+                }
+            } else {
+                // プレイヤー1に船を４つあげよう
+                player1.addFune(new CaptainFune(1));
+                player1.addFune(new HayaiFune(2));
+                player1.addFune(new KataiFune(3));
+                player1.addFune(new KougekiFune(4));
+            }
+
+            // 船の初期の位置
+            var startPositions = {
+                player1: [
+                    {i: 11, j: 0}, {i: 0, j: 6}, {i: 1, j: 7}, {i: 2, j: 8}
+                ],
+            }
+            this.setStartPositions(startPositions);
+
+            this.placePlayerShips(player1);
+
+            if (this.getPlayer(2) == undefined) {
+                var player2 = new AIPlayer(2, {name:"敵"});
+                this.addPlayer(player2);
+            }
+
+            if (stageId) {
+                this.setupStage(stageId);
+            } else {
+                this.setupStage(1);
+            }
+
+            this.sndManager.playBGM();
+            this.startTurn();
+        },
+
+        placePlayerShips: function(player) {
+            for(var funeIndex = 0; funeIndex < player.getFuneCount(); funeIndex++) {
+                var fune = player.getFune(funeIndex);
+                this.map.addChild(fune);
+                var startPosition
+                if (player.id == 1) {
+                    startPosition = this.startPositions.player1[funeIndex];
+                } else {
+                    startPosition = this.startPositions.player2[funeIndex];
+                }
+                this.map.positionFune(fune, startPosition.i, startPosition.j);
+            }
+        },
+
+        refreshPlayer: function(player) {
+            for(var funeIndex = 0; funeIndex < player.getFuneCount(); funeIndex++) {
+                var fune = player.getFune(funeIndex);
+                var recoverHp = fune.getHPMax();
+                fune.healDamage(recoverHp);
+                fune.refreshSkill();
+            }
+            this.placePlayerShips(player);
+            this.turnCounter = 0;
+            this.skipTurns = 0;
+        },
+
+        setupStage: function(stageId) {
+            this.stageId = stageId;
+
+            var saveData = {
+                stageId: stageId,
+                funeList: [],
+            };
+
+            var player = this.getPlayer(1);
+            for(var funeIndex = 0; funeIndex < player.getFuneCount(); funeIndex++) {
+                var fune = player.getFune(funeIndex);
+                saveData.funeList.push(fune.getId());
+            }
+            $.jStorage.set("save data", saveData);
+
+            var StageData = [
+                {
+                    startPositions: [
+                        {type: "captain", i: 12, j: 0},
+                    ]
+                },
+                {
+                    startPositions: [
+                        {type: "captain", i: 12, j: 0},
+                        {type: "hayai", i: 12, j: 2},
+                    ]
+                },
+            ];
+
+            var player2 = this.getPlayer(2);
+            var stageIndex = (stageId-1) % StageData.length;
+            var stageData = StageData[stageIndex];
+            for(var i=0; i< stageData.startPositions.length; i++) {
+                var entry = stageData.startPositions[i];
+
+                var fune = this.funeFactory(entry.type);
+                fune.originX = 32;
+                fune.scaleX = -1;
+                player2.addFune(fune);
+                this.map.addChild(fune);
+                this.map.positionFune(fune, entry.i, entry.j);
+            }
+        },
+
+        startTurn: function() {
+            utils.endUIShield();
+            var player = this.getActivePlayer();
+            if (this.skipTurns) {
+                if (player != this.skipper) {
+                    this.skipTurns--;
+                    utils.beginUIShield();
+                    return this.endTurn();
+                }
+            }
+            player.setActive(true);
             this.updateTurn();
+            if (player instanceof AIPlayer) {
+                utils.beginUIShield();
+                player.simulatePlay();
+            }
         },
 
         updateTurn: function() {
             this.map.setActiveFune(this.getActivePlayer().getActiveFune());
             this.map.drawMovementRange();
-            this.frameUi.updateTurn(this.turnCounter);
-            this.frameUi.updatePlayer(this.getActivePlayer().getData("name"));
+            this.frameUI.updateTurn(this.turnCounter);
+            this.frameUI.updatePlayer(this.getActivePlayer().getData("name"));
             this.sndManager.playFX(sndChangeShips);
         },
-        //ターン終了時の処理関数
+
         endTurn: function() {
-        	//アクティブプレイヤーを取得する
             var player = this.getActivePlayer();
-            //アクティブプレイヤーを非アクティブにする
             player.setActive(false);
 
-            //勝利者がいるか調べる
             var winner = this.getWinner();
-            //勝利者がいたら
             if (winner) {
-            	//プレイヤーのバナーを生成する
-                var playerBanner = new Sprite(512, 256);
-                //プレイヤー1が勝利者であrば
-                if (player.id == 1) {
-                	//まずはプレイヤー1のバナーを表示する
-                    playerBanner.image = game.assets[uiPlayerBanner1];
-                //プレイヤー2が勝利者であれば
-                } else if (player.id == 2) {
-                	//プレイヤー2のバナーを表示する
-                    playerBanner.image = game.assets[uiPlayerBanner2];
-                }
-                
-                //フェードインの前準備として透過率を0にする
-                playerBanner.opacity = 0;
-                //バナーの出現座標を設定する
-                playerBanner.x = 480 -256;
-                playerBanner.y = 320 -128;
-                //プレイヤーバナーをシーンに投入する
-                game.currentScene.addChild(playerBanner);
-
-                //クラスのオブジェクト自身への参照を変数に格納する
                 var self = this;
-                //プレイヤーバナーをフェードイン・アウトする。アウトを待ってコールバック関数を実行する
-                playerBanner.tl.fadeIn(20).delay(30).fadeOut(10).then(function() {
-                	//プレイヤーバナーを削除する
-                    game.currentScene.removeChild(playerBanner);
-
-                    //勝利のバナーを生成する
-                    var resultBanner = new Sprite(512, 256);
-                    //勝利のバナーの画像をセットする
-                    resultBanner.image = game.assets[uiWin];
-                    //こちらもフェードイン・アウトの前準備として透明にする
-                    resultBanner.opacity = 0;
-                    //座標をセットする
-                    resultBanner.x = 480 -256;
-                    resultBanner.y = 320 -128;
-                    //勝利のバナーをカレントのシーンに投入する
-                    game.currentScene.addChild(resultBanner);
-
-                    //勝利のバナーをフェードイン・アウトする。それが終わったら
-                    resultBanner.tl.fadeIn(20).delay(30).fadeOut(10).then(function() {
-                    	//ページをリロードして最初に戻る
-                        location.reload();
-                    });
-                });
-            //勝利者がいなければ
+                setTimeout(function(){
+                    if (self.mode == "versus") {
+                        self.versusOver(winner);
+                    } else if (self.mode == "campaign") {
+                        self.campaignOver(winner);
+                    }
+                }, 1000);
             } else {
-            	//ターンのカウンターを回す
                 this.turnCounter++;
 
-                //プレイヤーのバナーを作る
                 var playerBanner = new Sprite(512, 256);
-                //プレイヤー1のターンが終わったら
                 if (player.id == 1) {
-                	//プレイヤー2のバナーを出す
                     playerBanner.image = game.assets[uiPlayerBanner2];
-                //プレイヤー2のターンが終わったら
                 } else if (player.id == 2) {
-                	//プレイヤー1のバナーを出す
                     playerBanner.image = game.assets[uiPlayerBanner1];
                 }
-                
-                //バナーを最初は非表示にしておく
-                playerBanner.opacity = 0;
 
-                //バナーの座標を指定する
+                playerBanner.opacity = 0;
                 playerBanner.x = 480 -256;
                 playerBanner.y = 320 -128;
-                //カレントのシーンにバナーを追加する
                 game.currentScene.addChild(playerBanner);
 
-                //クラスのオブジェクト自身への参照を変数に保存する
                 var self = this;
-                //バナーのフェードイン・アウトを指定する
-                playerBanner.tl.fadeIn(20).delay(30).fadeOut(10).then(function(){
-                	//ターンを開始する
-                	self.startTurn();
-                	//UI操作不能状態を解除する
-                	utils.endUIShield();
-                	//1秒後にバナーを削除する
-                	game.currentScene.removeChild(playerBanner);
-                });
+                playerBanner.tl.fadeIn(20).delay(30).fadeOut(10).then(function() {
+                    self.startTurn();
+                    game.currentScene.removeChild(playerBanner);
+                })
             }
         },
 
-        //勝利者がいればそのプレイヤーを返す関数
+        versusOver: function(winner) {
+            var touchable = new ShieldWindow(this);
+            utils.beginUIShield();
+
+            var playerBanner = new Sprite(512, 256);
+            if (winner.id == 1) {
+                playerBanner.image = game.assets[uiPlayerBanner1];
+            } else if (winner.id == 2) {
+                playerBanner.image = game.assets[uiPlayerBanner2];
+            }
+
+            playerBanner.opacity = 0;
+            playerBanner.x = 480 -256;
+            playerBanner.y = 320 -128;
+            game.currentScene.addChild(playerBanner);
+
+            var self = this;
+            playerBanner.tl.fadeIn(20).delay(30).fadeOut(10).then(function() {
+                game.currentScene.removeChild(playerBanner);
+
+                var resultBanner = new Sprite(512, 256);
+                resultBanner.image = game.assets[uiWin];
+                resultBanner.opacity = 0;
+                resultBanner.touchEnabled = false;
+                resultBanner.x = 480 -256;
+                resultBanner.y = 320 -128;
+                game.currentScene.addChild(resultBanner);
+
+                resultBanner.tl.fadeIn(20).then(function(){
+                    touchable.onTouch = function() {
+                        location.reload();
+                    };
+                    utils.endUIShield();
+                });
+            });
+        },
+
+        campaignOver: function(winner) {
+            var touchable = new ShieldWindow(this);
+            utils.beginUIShield();
+
+            var playerBanner = new Sprite(512, 256);
+            playerBanner.image = game.assets[uiPlayerBanner1];
+
+            playerBanner.opacity = 0;
+            playerBanner.x = 480 -256;
+            playerBanner.y = 320 -128;
+            game.currentScene.addChild(playerBanner);
+
+            var self = this;
+            playerBanner.tl.fadeIn(20).delay(30).fadeOut(10).then(function() {
+                game.currentScene.removeChild(playerBanner);
+
+                var resultBanner = new Sprite(512, 256);
+                if (winner.id == 1) {
+                    resultBanner.image = game.assets[uiWin];
+                    touchable.onTouch = function() {
+                        self.refreshPlayer(winner);
+                        self.setupStage(self.stageId +1);
+                        self.startTurn();
+                    };
+                } else if (winner.id == 2) {
+                    resultBanner.image = game.assets[uiLose];
+                    touchable.onTouch = function() {
+                        $.jStorage.deleteKey("save data");
+                        location.reload();
+                    };
+                }
+                resultBanner.opacity = 0;
+                resultBanner.touchEnabled = false;
+                resultBanner.x = 480 -256;
+                resultBanner.y = 320 -128;
+                game.currentScene.addChild(resultBanner);
+
+                resultBanner.tl.fadeIn(20).then(function(){
+                    utils.endUIShield();
+                });
+            });
+        },
+
         getWinner: function() {
             if (this.getActivePlayer().getFuneCount() == 0) {
                 if (this.getNonActivePlayer().getFuneCount() == 0) {
@@ -1157,10 +1913,31 @@ window.onload = function(){
             return null
         },
 
-        //セッティング画面を開く関数
         openSettings: function() {
             new SettingsWindow(this);
-        }
+        },
+
+        getFreeTurns: function(player, turns) {
+            this.skipper = player;
+            this.skipTurns = turns;
+        },
+
+        funeFactory: function(name) {
+            switch(name) {
+                case 1:
+                case "captain":
+                    return new CaptainFune(1);
+                case 2:
+                case "hayai":
+                    return new HayaiFune(2);
+                case 3:
+                case "katai":
+                    return new KataiFune(3);
+                case 4:
+                case "kougeki":
+                    return new KougekiFune(4);
+            }
+        },
     })
 
     /**
@@ -1212,112 +1989,298 @@ window.onload = function(){
 
     })
 
-    //オーディオ管理のクラス
-    var SoundManager = Class.create({
-    	//コンストラクタ
+    /**
+     * オーディオ管理
+     */
+    var SoundManager = Class.create(Sprite, {
         initialize: function() {
-            this.volume = 0.5;			//ボリュームの初期値を50%にする
-            this.bgmPlaying = false;	//勝手に音を再生しないようにする
+            Sprite.call(this, 1,1);
+            this.volume = $.jStorage.get("sound volume", 0.5);
+            this.bgmPlaying = false;
         },
 
-        //BGMをならす関数
         playBGM: function() {
-            this.bgmPlaying = true;		//音楽の再生を許可する
+            this.bgmPlaying = true;
 
-            game.assets[sndBGM].play();	//音楽の再生を開始する
-            //WebAudioSoundを使用していれば
+            game.assets[sndBGM].play();
             if(game.assets[sndBGM].src){
-            	//BGMのループ再生を有効にする
                 game.assets[sndBGM].src.loop = true;
-            //DOMSoundであれば
             } else {
-            	//SoundManagerのオブジェクトをカレントのシーンに入れる
                 game.currentScene.addChild(this);
             }
-            //ボリュームをクラスで指定された値にする
-            game.assets[sndBGM].volume = this.volume;
-        },
-        
-        //DOMSoundのループ再生用関数
-        onenterframe: function(){
-        	//bgmが再生状態になっていれば
-            if (this.bgmPlaying) {
-            	//フレームが更新される度にBGMの再生命令を実行する
-                game.assets[sndBGM].play();
-            }
+            game.assets[sndBGM].volume = this.volume *0.3;
         },
 
-        //サウンドを複製して、同じサウンドを複数回、または同時にならせるようにする関数
         playFX: function(name) {
-        	//サウンドを複製し、変数に格納する
             var fx = game.assets[name].clone();
-            fx.play();	//複製したサウンドをならす
-            fx.volume = this.volume;	//音量を設定する
+            fx.play();
+            fx.volume = this.volume;
         },
 
-        //BGMの再生を一時停止する関数
         pauseBGM: function() {
-        	//BGMの再生を無効にする
             this.bgmPlaying = false;
-            //BGMを一時停止する
             game.assets[sndBGM].pause();
         },
 
-        //BGMの再生を停止する関数
         stopBGM: function() {
-        	//BGMの再生を無効にする
             this.bgmPlaying = false;
-            //BGMを一停止するする
             game.assets[sndBGM].stop();
         },
 
-        //音量を上げる関数
         volumeUp: function() {
-        	//音量を5%挙げる。
             this.volume += 0.05;
-            //音量が最大値を超えてしまったら
             if (this.volume > 1) {
-            	//最大値に戻す
                 this.volume = 1;
             }
-            //コンソールに音量を変えたログを流す
             console.log("volume", this.volume);
-            //BGMの音量を合わせる
-            game.assets[sndBGM].volume = this.volume;
-            //クリック音をならしてレスポンスを返す
+            $.jStorage.set("sound volume", this.volume);
+            game.assets[sndBGM].volume = this.volume *0.3;
             this.playFX(sndClick);
         },
-        
-        //音量を下げる関数
+
         volumeDown: function() {
-        	//音量を5%下げる
             this.volume -= 0.05;
-            //音量が0を下回ったら
             if (this.volume < 0) {
-            	//それは不正な値なので、0まで戻す
                 this.volume = 0;
             }
-            //音量変更のログを流す
             console.log("volume", this.volume);
-            //BGMの音量を合わせる
-            game.assets[sndBGM].volume = this.volume;
-            //レスポンスの効果音を鳴らす
+            $.jStorage.set("sound volume", this.volume);
+            game.assets[sndBGM].volume = this.volume *0.3;
             this.playFX(sndClick);
         },
 
-        //現在の音量を取得して返す関数
         getVolume: function() {
-            return this.volume;	//サウンドマネージャーから音量の値を取得して返す
+            return this.volume;
+        },
+
+        onenterframe: function(){
+            if (this.bgmPlaying) {
+                game.assets[sndBGM].play();
+            }
         },
     })
-    
-    //セッティングウィンドウ
+
+    /**
+     * キャラのポップアップウィンドー
+     */
+    var FunePopup = Class.create(Scene, {
+        initialize: function(fune) {
+            Scene.call(this);
+            game.pushScene(this);
+
+            fune.player.controller.sndManager.playFX(sndClick);
+
+            var shieldSprite = new Sprite(960, 640);
+            shieldSprite.image = game.assets[ui1x1Black];
+            shieldSprite.opacity = 0.5
+            this.addChild(shieldSprite);
+
+            var windowGroup = new Group();
+            windowGroup.x = (960 -512)/2;
+            windowGroup.y = (640 -512)/2;
+            this.addChild(windowGroup);
+
+            var windowSprite = new Sprite(512, 512);
+            windowSprite.image = game.assets[uiWindowSprite];
+            windowGroup.addChild(windowSprite);
+
+            var statsGroup = new Group();
+            statsGroup.x = 64;
+            statsGroup.y = 32;
+            windowGroup.addChild(statsGroup);
+
+            var fontColor = "rgba(255, 255, 105, 1.0)";
+
+            captainLabel = new Label("船長："+fune.getCaptainName());
+            statsGroup.addChild(captainLabel);
+            captainLabel.x = 0;
+            captainLabel.y = 0;
+            captainLabel.font = fontStyle;
+            captainLabel.color = fontColor;
+
+            attackLabel = new Label("攻撃力："+fune.getAttack());
+            statsGroup.addChild(attackLabel);
+            attackLabel.x = 0;
+            attackLabel.y = 64 *1;
+            attackLabel.font = fontStyle;
+            attackLabel.color = fontColor;
+
+            defenseLabel = new Label("防御力："+fune.getDefense());
+            statsGroup.addChild(defenseLabel);
+            defenseLabel.x = 0;
+            defenseLabel.y = 64 *2;
+            defenseLabel.font = fontStyle;
+            defenseLabel.color = fontColor;
+
+            movementLabel = new Label("移動力："+fune.getMovement());
+            statsGroup.addChild(movementLabel);
+            movementLabel.x = 0;
+            movementLabel.y = 64 *3;
+            movementLabel.font = fontStyle;
+            movementLabel.color = fontColor;
+
+            rangeLabel = new Label("攻撃の距離："+fune.getRange());
+            statsGroup.addChild(rangeLabel);
+            rangeLabel.x = 0;
+            rangeLabel.y = 64 *4;
+            rangeLabel.font = fontStyle;
+            rangeLabel.color = fontColor;
+
+            hpLabel = new Label("HP："+fune.getHP()+"/"+fune.getHPMax());
+            statsGroup.addChild(hpLabel);
+            hpLabel.x = 0;
+            hpLabel.y = 64 *5;
+            hpLabel.font = fontStyle;
+            hpLabel.color = fontColor;
+
+            var pirate = new Sprite(400, 640);
+            pirate.x = 350;
+            pirate.y = -50;
+            pirate.opacity = 0;
+            pirate.image = fune.getImage();
+            windowGroup.addChild(pirate);
+
+            var self = this;
+            var cancelBtnSprite = new Sprite(128, 64);
+            cancelBtnSprite.image = game.assets[uiCancelBtnSprite];
+            cancelBtnSprite.x = 64;
+            cancelBtnSprite.y = 512 -64 -32;
+            windowGroup.addChild(cancelBtnSprite);
+
+            var skillBtnSprite = new Sprite(128, 64);
+            skillBtnSprite.image = game.assets[uiSkillBtnSprite];
+            skillBtnSprite.x = 64 *4;
+            skillBtnSprite.y = 512 -64 -32;
+            windowGroup.addChild(skillBtnSprite);
+
+            if (fune.usedSkill) {
+                skillBtnSprite.opacity = 0.5;
+            }
+
+            windowGroup.originX = 256;
+            windowGroup.originY = 256;
+            windowGroup.scaleX = 0.7;
+            windowGroup.scaleY = 0.7;
+            windowGroup.tl.scaleTo(1, 10, enchant.Easing.ELASTIC_EASEOUT).then(function() {
+                pirate.y = -50;
+                pirate.tl.moveBy(-50, -25, 5).and().fadeIn(10);
+
+                cancelBtnSprite.addEventListener(enchant.Event.TOUCH_START, function(params) {
+                    cancelBtnSprite.tl.scaleTo(1.1, 10, enchant.Easing.ELASTIC_EASEOUT)
+                });
+
+                cancelBtnSprite.addEventListener(enchant.Event.TOUCH_END, function(params) {
+                    shieldSprite.tl.fadeTo(0, 5);
+                    cancelBtnSprite.tl.scaleTo(0.9, 3).and().fadeTo(0, 5);
+                    pirate.tl.fadeTo(0, 5);
+                    windowSprite.tl.fadeTo(0, 5).then(function() {
+                        game.popScene();
+                        fune.player.controller.sndManager.playFX(sndClick);
+                        if (self.onCancel) {
+                            self.onCancel()
+                        }
+                    });
+                });
+
+                if (fune.usedSkill == false) {
+                    skillBtnSprite.addEventListener(enchant.Event.TOUCH_START, function(params) {
+                        skillBtnSprite.tl.scaleTo(1.1, 10, enchant.Easing.ELASTIC_EASEOUT)
+                    });
+
+                    skillBtnSprite.addEventListener(enchant.Event.TOUCH_END, function(params) {
+                        shieldSprite.tl.fadeTo(0, 5);
+                        skillBtnSprite.tl.scaleTo(0.9, 3).and().fadeTo(0, 5);
+                        pirate.tl.fadeTo(0, 5);
+                        windowSprite.tl.fadeTo(0, 5).then(function() {
+                            game.popScene();
+                            fune.player.controller.sndManager.playFX(sndClick);
+                            if (self.onSkill) {
+                                self.onSkill()
+                            }
+                        });
+                    });
+                }
+            });
+        },
+    })
+
+    /**
+     * シールドタッチのポップアップウィンドー
+     */
+    var ShieldWindow = Class.create(Scene, {
+        initialize: function(gameManager) {
+            Scene.call(this);
+            game.pushScene(this);
+
+            gameManager.sndManager.playFX(sndClick);
+
+            var shieldSprite = new Sprite(960, 640);
+            shieldSprite.image = game.assets[ui1x1Black];
+            shieldSprite.opacity = 0.5
+            this.addChild(shieldSprite);
+
+            var self = this;
+            shieldSprite.addEventListener(enchant.Event.TOUCH_END, function(params) {
+                if (self.onTouch) {
+                    gameManager.sndManager.playFX(sndClick);
+                    game.popScene();
+                    self.onTouch();
+                }
+            });
+        }
+    })
+
+    var AlertWindow = Class.create(Scene, {
+        initialize: function(message, gameManager) {
+            Scene.call(this);
+            game.pushScene(this);
+
+            var shieldSprite = new Sprite(960, 640);
+            shieldSprite.image = game.assets[ui1x1Black];
+            shieldSprite.opacity = 0.2
+            this.addChild(shieldSprite);
+
+            var windowSprite = new Sprite(320, 160);
+            windowSprite.image = game.assets[uiAlertScreen];
+            windowSprite.x = (960 -320)/2;
+            windowSprite.y = (640 -160)/2;
+            this.addChild(windowSprite);
+
+            var fontColor = "rgba(255, 255, 105, 1.0)";
+
+            messageLabel = new Label(message);
+            this.addChild(messageLabel);
+            messageLabel.x = windowSprite.x +40;
+            messageLabel.y = windowSprite.y +64;
+            messageLabel.font = fontStyle;
+            messageLabel.color = fontColor;
+
+            var once = false;
+            var self = this;
+            this.addEventListener(enchant.Event.TOUCH_END, function(params) {
+                if (once == false) {
+                    once = true;
+                    windowSprite.tl.fadeTo(0, 5).then(function() {
+                        gameManager.sndManager.playFX(sndClick);
+                        game.popScene();
+                        if (self.onTouch) {
+                            self.onTouch();
+                        }
+                    });
+                }
+            });
+        },
+    })
+
+    /**
+     * キャラのポップアップウィンドー
+     */
     var SettingsWindow = Class.create(Scene, {
         initialize: function(gameManager) {
-        	gameManager.sndManager.playFX(sndClick);
-
-        	Scene.call(this);
+            Scene.call(this);
             game.pushScene(this);
+
+            gameManager.sndManager.playFX(sndClick);
 
             var shieldSprite = new Sprite(960, 640);
             shieldSprite.image = game.assets[ui1x1Black];
@@ -1422,174 +2385,154 @@ window.onload = function(){
                     shieldSprite.tl.fadeTo(0, 5);
                     cancelBtnSprite.tl.scaleTo(0.9, 3).and().fadeTo(0, 5);
                     windowSprite.tl.fadeTo(0, 5).then(function() {
+                        gameManager.sndManager.playFX(sndClick);
                         game.popScene();
                     });
                 });
             });
         },
-    })   
-    
+    })
+
+
     /**
      * キャラのポップアップウィンドー
      */
-    var StatusWindow = Class.create(Scene, {
-    		//コンストラクタ
-    		initialize: function(fune) {
-    			//ウィンドウを開いた音を鳴らす
-                fune.player.controller.sndManager.playFX(sndClick);
-    			//スーパークラスのコンストラクタを呼ぶ
-    			Scene.call(this);
-    			//自身をゲームシーンとして登録する
-    			game.pushScene(this);
-    			
-    			//オーバーレイの画像のスプライトを作る
-    			var shieldSprite = new Sprite(960, 640);
-    			//真っ黒な画像をセットする
-    			shieldSprite.image = game.assets[ui1x1Black];
-    			//半透過にする
-    			shieldSprite.opacity = 0.5
-    			//ウィンドウに加える
-    			this.addChild(shieldSprite);
-    			
-    			//ウィンドウのスプライトグループを作る
-    			var windowGroup = new Group();
-    			//ウィンドウの座標を計算して格納する
-    			windowGroup.x = (960 -512)/2;
-    			windowGroup.y = (640 -512)/2;
-    			//ウィンドウのクラスのオブジェクトに追加する
-    			this.addChild(windowGroup);
-    			
-    			//ウィンドウ本体のスプライトを作る
-    			var windowSprite = new Sprite(512, 512);
-    			//ウィンドウのスプライトに画像をセットする
-    			windowSprite.image = game.assets[uiWindowSprite];
-    			//ウィンドウのスプライトグループに追加する
-    			windowGroup.addChild(windowSprite);
-    			
-    			//ステータス表示のためのラベルのグループを作る
-    			var statsGroup = new Group();
-    			//配置する座標を指定する
-    			statsGroup.x = 64;
-    			statsGroup.y = 32;
-    			//ウィンドウのスプライトグループに追加する
-    			windowGroup.addChild(statsGroup);
-    			
-    			//フォントカラーの設定を用意する
-    			var fontColor = "rgba(255, 255, 105, 1.0)";
-    			
-    			//船長名のラベルを作る
-    			captainLabel = new Label("船長："+fune.getCaptainName());
-    			//船長名のラベルをステータス表示のためのグループに追加する
-    			statsGroup.addChild(captainLabel);
-    			//座標をセットする。左上の端に合わせる
-    			captainLabel.x = 0;
-    			captainLabel.y = 0;
-    			//あらかじめ作っておいたフォントのスタイルをセットする
-    			captainLabel.font = fontStyle;
-    			//フォントの色をセットする
-    			captainLabel.color = fontColor;
-    			
-    			//船長名のラベルを作る
-    			attackLabel = new Label("攻撃力："+fune.getAttack());
-    			//船長名のラベルをステータス表示のためのグループに追加する
-    			statsGroup.addChild(attackLabel);
-    			//座標をセットする。左の端に合わせる。縦座標を、各ラベルがぶつからないように調整する
-    			attackLabel.x = 0;
-    			attackLabel.y = 64 *1;
-    			//フォントのスタイルを設定する
-    			attackLabel.font = fontStyle;
-    			attackLabel.color = fontColor;
-    			
-    			defenseLabel = new Label("防御力："+fune.getDefense());
-    			statsGroup.addChild(defenseLabel);
-    			defenseLabel.x = 0;
-    			defenseLabel.y = 64 *2;
-    			defenseLabel.font = fontStyle;
-    			defenseLabel.color = fontColor;
-    			
-    			//以下、ステータス分割愛
-    			movementLabel = new Label("移動力："+fune.getMovement());
-    			statsGroup.addChild(movementLabel);
-    			movementLabel.x = 0;
-    			movementLabel.y = 64 *3;
-    			movementLabel.font = fontStyle;
-    			movementLabel.color = fontColor;
-    			
-    			rangeLabel = new Label("攻撃の距離："+fune.getRange());
-    			statsGroup.addChild(rangeLabel);
-    			rangeLabel.x = 0;
-    			rangeLabel.y = 64 *4;
-    			rangeLabel.font = fontStyle;
-    			rangeLabel.color = fontColor;
-    			
-    			hpLabel = new Label("HP："+fune.getHP()+"/"+fune.getHPMax());
-    			statsGroup.addChild(hpLabel);
-    			hpLabel.x = 0;
-    			hpLabel.y = 64 *5;
-    			hpLabel.font = fontStyle;
-    			hpLabel.color = fontColor;
-    			
-    			//海賊の画像のスプライトを生成する
-    			var pirate = new Sprite(400, 640);
-    			//フェードインのため、初期状態では透明にする
-    			pirate.opacity = 0;
-    			//右端に合わせて位置を調整する。さらに、少し高めに画像をセットする
-    			pirate.x = 350;
-    			pirate.y = -50;
-    			//船長の画像をセットする
-    			pirate.image = fune.getImage();
-    			//グループに船長の画像を追加する
-    			windowGroup.addChild(pirate);
-    			
-    			//このクラスのオブジェクト自身の参照を変数に保存する
-    			var self = this;
-    			//キャンセルボタンのスプライトを作成する
-    			var cancelBtnSprite = new Sprite(128, 64);
-    			//キャンセルボタンの画像をセットする
-    			cancelBtnSprite.image = game.assets[uiCancelBtnSprite];
-    			//キャンセルボタン何の座標を指定する
-    			cancelBtnSprite.x = 64;
-    			cancelBtnSprite.y = 512 -64 -32;
-    			
-    			//生成したキャンセルボタンのスプライトをグループに追加する
-    			windowGroup.addChild(cancelBtnSprite);
-    			//アニメーションの中心座標を設定する
-                windowGroup.originX = 256;
-                windowGroup.originY = 256;
-                //最初は小さめにして表示する
-                windowGroup.scaleX = 0.7;
-                windowGroup.scaleY = 0.7;
-                //ゆっくり大きくしていき、それが終わったら
-                windowGroup.tl.scaleTo(1, 10, enchant.Easing.ELASTIC_EASEOUT).then(function() {
-                    pirate.y = -50;	//海賊の画像を上にずらす
-                    //海賊の画像を所定の位置に動かしながらフェードインする
-                    pirate.tl.moveBy(-50, -25, 5).and().fadeIn(10);
+    var StartScreen = Class.create(Scene, {
+        initialize: function(gameManager) {
+            Scene.call(this);
+            game.pushScene(this);
 
-                    //キャンセルボタンのタッチ開始イベントを登録する
-                    cancelBtnSprite.addEventListener(enchant.Event.TOUCH_START, function(params) {
-                    	//アニメーションしながら1.1倍の大きさにする
-                        cancelBtnSprite.tl.scaleTo(1.1, 10, enchant.Easing.ELASTIC_EASEOUT)
-                    });
-                    //キャンセルボタンのタッチが終了したら
-                    cancelBtnSprite.addEventListener(enchant.Event.TOUCH_END, function(params) {
-                    	//ゆっくりUI操作無効の幕を張る
-                        shieldSprite.tl.fadeTo(0, 5);
-                        //キャンセルボタンを小さくする
-                        cancelBtnSprite.tl.scaleTo(0.9, 3).and().fadeTo(0, 5);
-                        //海賊画像をフェードアウトする
-                        pirate.tl.fadeTo(0, 5);
-                        //ボタンを押した音を鳴らす
-                        fune.player.controller.sndManager.playFX(sndClick);
-                        //ウィンドウをフェードアウトさせる
-                        windowSprite.tl.fadeTo(0, 5).then(function() {
-                            game.popScene();		//シーンを再開する
-                            if (self.onCancel) {	//キャンセル時のコールバック関数があれば
-                                self.onCancel();	//実行する
-                            }
-                        });
+            var shieldSprite = new Sprite(960, 640);
+            shieldSprite.image = game.assets[ui1x1Black];
+            shieldSprite.opacity = 0.5
+            this.addChild(shieldSprite);
+
+            var windowGroup = new Group();
+            windowGroup.x = (960 -512)/2;
+            windowGroup.y = (640 -512)/2;
+            this.addChild(windowGroup);
+
+            var windowSprite = new Sprite(512, 512);
+            windowSprite.image = game.assets[uiStartScreen];
+            windowGroup.addChild(windowSprite);
+
+            var self = this;
+            var versusBtnSprite = new Sprite(128, 64);
+            versusBtnSprite.image = game.assets[uiVersusBtnSprite];
+            versusBtnSprite.x = 64 *1.5;
+            versusBtnSprite.y = 512 -64 -32;
+            windowGroup.addChild(versusBtnSprite);
+
+            var campaignBtnSprite = new Sprite(128, 64);
+            campaignBtnSprite.image = game.assets[uiStoryBtnSprite];
+            campaignBtnSprite.x = 64 *4.5;
+            campaignBtnSprite.y = 512 -64 -32;
+            windowGroup.addChild(campaignBtnSprite);
+
+            windowGroup.originX = 256;
+            windowGroup.originY = 256;
+
+            versusBtnSprite.addEventListener(enchant.Event.TOUCH_START, function(params) {
+                versusBtnSprite.tl.scaleTo(1.1, 10, enchant.Easing.ELASTIC_EASEOUT)
+            });
+
+            versusBtnSprite.addEventListener(enchant.Event.TOUCH_END, function(params) {
+                shieldSprite.tl.fadeTo(0, 5);
+                versusBtnSprite.tl.scaleTo(0.9, 3).and().fadeTo(0, 5);
+                windowSprite.tl.fadeTo(0, 5).then(function() {
+                    gameManager.beginVersusGame();
+                    gameManager.sndManager.playFX(sndClick);
+                    game.popScene();
+                });
+            });
+
+            campaignBtnSprite.addEventListener(enchant.Event.TOUCH_START, function(params) {
+                campaignBtnSprite.tl.scaleTo(1.1, 10, enchant.Easing.ELASTIC_EASEOUT)
+            });
+
+            campaignBtnSprite.addEventListener(enchant.Event.TOUCH_END, function(params) {
+                campaignBtnSprite.tl.scaleTo(0.9, 3).and().fadeTo(0, 5);
+                windowSprite.tl.fadeTo(0, 5).then(function() {
+                    gameManager.sndManager.playFX(sndClick);
+                    game.popScene();
+                    new CampaignScreen(gameManager);
+                });
+            });
+        },
+    })
+
+    /**
+     * キャラのポップアップウィンドー
+     */
+    var CampaignScreen = Class.create(Scene, {
+        initialize: function(gameManager) {
+            Scene.call(this);
+            game.pushScene(this);
+
+            var shieldSprite = new Sprite(960, 640);
+            shieldSprite.image = game.assets[ui1x1Black];
+            shieldSprite.opacity = 0.5
+            this.addChild(shieldSprite);
+
+            var windowGroup = new Group();
+            windowGroup.x = (960 -512)/2;
+            windowGroup.y = (640 -512)/2;
+            this.addChild(windowGroup);
+
+            var windowSprite = new Sprite(512, 512);
+            windowSprite.image = game.assets[uiStoryScreen];
+            windowGroup.addChild(windowSprite);
+
+            var self = this;
+
+            var saveData = $.jStorage.get("save data");
+            if (saveData) {
+                console.log("Found Save Data", saveData.stageId)
+                var continueBtnSprite = new Sprite(128, 64);
+                continueBtnSprite.image = game.assets[uiContinueBtnSprite];
+                continueBtnSprite.x = 64 *1.5;
+                continueBtnSprite.y = 512 -64 -32;
+                windowGroup.addChild(continueBtnSprite);
+
+                continueBtnSprite.addEventListener(enchant.Event.TOUCH_START, function(params) {
+                    continueBtnSprite.tl.scaleTo(1.1, 10, enchant.Easing.ELASTIC_EASEOUT)
+                });
+
+                continueBtnSprite.addEventListener(enchant.Event.TOUCH_END, function(params) {
+                    shieldSprite.tl.fadeTo(0, 5);
+                    continueBtnSprite.tl.scaleTo(0.9, 3).and().fadeTo(0, 5);
+                    windowSprite.tl.fadeTo(0, 5).then(function() {
+                        gameManager.beginCampaignGame();
+                        gameManager.sndManager.playFX(sndClick);
+                        game.popScene();
                     });
                 });
-    		}
+            }
+
+            var newBtnSprite = new Sprite(128, 64);
+            newBtnSprite.image = game.assets[uiNewBtnSprite];
+            newBtnSprite.x = 64 *4.5;
+            newBtnSprite.y = 512 -64 -32;
+            windowGroup.addChild(newBtnSprite);
+
+            windowGroup.originX = 256;
+            windowGroup.originY = 256;
+
+            newBtnSprite.addEventListener(enchant.Event.TOUCH_START, function(params) {
+                newBtnSprite.tl.scaleTo(1.1, 10, enchant.Easing.ELASTIC_EASEOUT)
+            });
+
+            newBtnSprite.addEventListener(enchant.Event.TOUCH_END, function(params) {
+                $.jStorage.deleteKey("save data")
+                shieldSprite.tl.fadeTo(0, 5);
+                newBtnSprite.tl.scaleTo(0.9, 3).and().fadeTo(0, 5);
+                windowSprite.tl.fadeTo(0, 5).then(function() {
+                    gameManager.beginCampaignGame();
+                    gameManager.sndManager.playFX(sndClick);
+                    game.popScene();
+                });
+            });
+        },
     })
 
     /**
@@ -1617,46 +2560,13 @@ window.onload = function(){
         var map = new GameMap(sceneGameMain, mapDisplayData);
         manager.setMap(map);
 
-        var frameUi = new FrameUI(sceneGameMain);
-        manager.setFrameUI(frameUi);
-
-        // プレイヤー１
-        var player1 = new GamePlayer(1, {name:"プレイヤー１"});
-        manager.addPlayer(player1);
-        // プレイヤー1に船を４つあげよう
-        player1.addFune(new CaptainFune(1));
-        player1.addFune(new HayaiFune(2));
-        player1.addFune(new KataiFune(3));
-        player1.addFune(new KougekiFune(4));
-
-        // プレイヤー２
-        var player2 = new GamePlayer(2, {name:"プレイヤー２"});
-        manager.addPlayer(player2);
-        // プレイヤー1に船を４つあげよう
-        player2.addFune(new CaptainFune(1));
-        player2.addFune(new HayaiFune(2));
-        player2.addFune(new KataiFune(3));
-        player2.addFune(new KougekiFune(4));
-
-        // 船の初期の位置
-        var startPositions = {
-            player1: [
-                {i: 0, j: 8}, {i: 0, j: 6}, {i: 1, j: 7}, {i: 2, j: 8}
-            ],
-            player2: [
-                {i: 12, j: 0}, {i: 10, j: 0}, {i: 11, j: 1}, {i: 12, j: 2}
-            ],
-        }
-        manager.setStartPositions(startPositions);
+        var frameUI = new FrameUI(sceneGameMain);
+        manager.setFrameUI(frameUI);
 
         // ゲームにシーンを追加
         game.pushScene(sceneGameMain);
 
-        var sndmanager = new SoundManager();
-        sndmanager.playBGM();
-        
-        // ゲームのロジック開始
-        manager.beginGame();
+        new StartScreen(manager);
     };
 
     game.start();

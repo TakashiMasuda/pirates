@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="x-ua-compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <script type='text/javascript' src="../../shared/javascript-astar/astar.js"></script>
+    <script type='text/javascript' src="../../shared/jStorage-master/jstorage.js"></script>
+    <script type="text/javascript" src="../../../build/enchant.js"></script>
+    <script type="text/javascript" src="stageData.js"></script>
+    <script type="text/javascript" src="main.js"></script>
+    <script>// Hide Browser bar for mobile
+        //一定時間毎に実行される関数
+    	setInterval(function () {
+    		//スクロール位置を最上部に合わせる
+            window.scrollTo(0, 1);
+    	//1秒毎に実行する
+        }, 1000);
+    
+    	//タッチ開始時の座標を保存する変数2つを宣言し、0で初期化する
+        var xStart, yStart = 0;
+    	//フリック操作実現のためのコード
+    	//タッチ開始時のイベントを登録する
+        document.addEventListener('touchstart',function(e) {
+        	//イベントオブジェクトからタッチ位置を取得して変数に保存する
+            xStart = e.touches[0].screenX;
+            yStart = e.touches[0].screenY;
+        });
+         //続けてタッチ移動時のイベントを登録する
+        document.addEventListener('touchmove',function(e) {
+        	//移動距離を取得する
+            var xMovement = Math.abs(e.touches[0].screenX - xStart);
+            var yMovement = Math.abs(e.touches[0].screenY - yStart);
+            //縦のフリック幅が行き過ぎていたら
+            if((yMovement * 3) > xMovement) {
+            	//デフォルトの処理を無効にする
+                e.preventDefault();
+            }
+        });        
+    </script>    
+    <style type="text/css">
+        body {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body bgcolor="grey">
+</body>
+</html>
+
